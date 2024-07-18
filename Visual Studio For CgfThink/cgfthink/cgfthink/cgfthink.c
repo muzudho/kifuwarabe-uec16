@@ -9,9 +9,10 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-//#include <cmath>
+//#include <cmath> // インクルードするとコンパイラーがエラー出す？
 
 #include <windows.h>
+//#include <tuple>    // C++11 からタプルが使えるそうだ。でもこれＣ言語
 
 // インクルードでパスが見つからなかったので、 cgfthink.h の内容を、ここへ埋め込んだ
 // アプリケーションから呼ばれる関数の宣言
@@ -304,6 +305,35 @@ void readKifu(
 }
 
 
+// 壁で反射する
+int reflection_x_on_the_wall(
+    int x
+) 
+{
+    // 例えば x:-3 なら、x:3 にする
+    if (x < 0)
+    {
+        x *= -1;
+    }
+
+    return x;
+}
+
+
+// 壁で反射する
+int reflection_y_on_the_wall(
+    int y
+)
+{
+    if (y < 0)
+    {
+        y *= -1;
+    }
+
+    return y;
+}
+
+
 // ########
 // # 主要 #
 // ########
@@ -419,6 +449,11 @@ DLL_EXPORT int cgfgui_thinking(
 
         int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
         int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
+
+        // TODO 盤外に石を投げてしまったら、反射したい
+        next_x = reflection_x_on_the_wall(next_x);
+        next_y = reflection_y_on_the_wall(next_y);
+
         ret_z = get_z(next_x, next_y);
         PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff);
         return ret_z;
@@ -445,6 +480,11 @@ DLL_EXPORT int cgfgui_thinking(
 
     int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
     int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
+
+    // TODO 盤外に石を投げてしまったら、反射したい
+    next_x = reflection_x_on_the_wall(next_x);
+    next_y = reflection_y_on_the_wall(next_y);
+
     ret_z = get_z(next_x, next_y);
     PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff);
     return;
