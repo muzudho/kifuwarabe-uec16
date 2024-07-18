@@ -433,7 +433,8 @@ DLL_EXPORT int cgfgui_thinking(
             distance = 19.0f / 4.0f;
 
             // 角度は適当に 45°とする
-            degrees = 45;
+            //degrees = 45;
+            degrees = 0;
         }
         // ２手前の自分は天元に打ったものと想定して、仮の値を入れる。
         else {
@@ -498,7 +499,8 @@ DLL_EXPORT int cgfgui_thinking(
 
     // ２点から角度を求め、適当に 45°ずらす
     float radians = atan((float)diff_y / (float)diff_x);
-    degrees = (radians_to_degrees(radians) + 45) % 360;
+    //degrees = (radians_to_degrees(radians) + 45) % 360;
+    degrees = (radians_to_degrees(radians) + 0) % 360;
 
     int degrees_offset = 0;
     for (; degrees_offset < 360; degrees_offset++) {
