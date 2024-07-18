@@ -318,6 +318,16 @@ int get_middle(int jump_z_backup[]) {
 }
 
 
+int radians_to_degrees(float radians) {
+    return (int)(radians * (180 / 3.14159));
+}
+
+
+int degrees_to_radians(int degrees) {
+    return degrees * 3.14159f / 180.0f;
+
+}
+
 // 現在局面を作る
 void setupCurrentPosition(
     int dll_init_board[],	// 初期盤面
@@ -406,6 +416,7 @@ DLL_EXPORT int cgfgui_thinking(
     if (dll_endgame_type == GAME_DRAW_NUMBER) return endgame_draw_number(dll_endgame_board);
 
     // 以下、プレイ
+    PRT(L"手数:(%4d)\n", dll_tesuu);
 
     // １手目 ----> つまり自分が初手を打つ
     if (dll_tesuu == 0) {
@@ -418,6 +429,7 @@ DLL_EXPORT int cgfgui_thinking(
         int last_z = dll_kifu[dll_tesuu - 1][0];
         int last_x = get_x(last_z);
         int last_y = get_y(last_z);
+        PRT(L"１手前の相手の手  last(x, y):(%2d, %2d)\n", last_x, last_y);
 
         // 距離
         float distance = 0.0f;
@@ -445,12 +457,12 @@ DLL_EXPORT int cgfgui_thinking(
 
             // ２点から角度を求め、適当に 45°ずらす
             float radians = atan((float)diff_y / (float)diff_x);
-            degrees = (int)(radians * (180 / 3.14159));
-            degrees = (degrees + 45) % 360;
+            degrees = (radians_to_degrees(radians) + 45) % 360;
         }
 
-        int next_y = (int)(distance * sin(degrees * 3.14159f / 180.0f));
-        int next_x = (int)(distance * cos(degrees * 3.14159f / 180.0f));
+        int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
+        int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
+        PRT(L"２手目  next(x, y):(%2d, %2d)\n", next_x, next_y);
 
         ret_z = get_z(next_x, next_y);
     }
