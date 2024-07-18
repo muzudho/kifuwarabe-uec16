@@ -456,8 +456,8 @@ DLL_EXPORT int cgfgui_thinking(
         for (; degrees_offset < 360; degrees_offset++)
         {
             int next_degrees = degrees + degrees_offset;
-            int next_y = (int)(distance * sin(degrees_to_radians(next_degrees)));
-            int next_x = (int)(distance * cos(degrees_to_radians(next_degrees)));
+            int next_y = (int)(distance * sin(degrees_to_radians(next_degrees))) + last_y;
+            int next_x = (int)(distance * cos(degrees_to_radians(next_degrees))) + last_x;
 
             // TODO 盤外に石を投げてしまったら、反射したい
             next_x = reflection_x_on_the_wall(next_x);
@@ -505,8 +505,8 @@ DLL_EXPORT int cgfgui_thinking(
     int degrees_offset = 0;
     for (; degrees_offset < 360; degrees_offset++) {
         int next_degrees = degrees + degrees_offset;
-        int next_y = (int)(distance * sin(degrees_to_radians(next_degrees)));
-        int next_x = (int)(distance * cos(degrees_to_radians(next_degrees)));
+        int next_y = (int)(distance * sin(degrees_to_radians(next_degrees))) + last_y;
+        int next_x = (int)(distance * cos(degrees_to_radians(next_degrees))) + last_x;
 
         // TODO 盤外に石を投げてしまったら、反射したい
         next_x = reflection_x_on_the_wall(next_x);
