@@ -427,8 +427,8 @@ DLL_EXPORT int cgfgui_thinking(
     int last_y = get_y(last_z);
     PRT(L"[%4d手目]  last(x, y):(%2d, %2d)  last_z:%04x\n", dll_tesuu + 1, last_x, last_y, last_z & 0xff);
 
-    // 距離
-    float distance = 0.0f;
+    // 距離 ----> 剰余を使いたいので、整数にします
+    int distance = 0;
 
     // 角度（度数法）。 0 ～ 359
     int degrees = 0;
@@ -440,7 +440,7 @@ DLL_EXPORT int cgfgui_thinking(
         // １手前の相手が天元に打った場合は、距離９、角度４５°とする。
         if (last_z == get_z(9, 9)) {
             // 距離を１９路盤の辺の４分の１とする
-            distance = 19.0f / 4.0f;
+            distance = (int)(19.0f / 4.0f);
 
             // 角度は適当に 45°とする
             //degrees = 45;
@@ -455,46 +455,52 @@ DLL_EXPORT int cgfgui_thinking(
 
             // ２点の石の距離 ----> 直角三角形の斜辺の長さ
             // それだと距離が遠すぎるので、さらに半分にする
-            distance = hypot(diff_x, diff_y) / 2.0f;
+            distance = (int)(hypot(diff_x, diff_y) / 2.0f);
 
             // ２点から角度を求め、適当に 45°ずらす
             float radians = atan((float)diff_y / (float)diff_x);
             degrees = (radians_to_degrees(radians) + 45) % 360;
         }
 
-        int degrees_offset = 0;
-        for (; degrees_offset < 360; degrees_offset++)
-        {
-            int next_degrees = degrees + degrees_offset;
-            int next_y = (int)(distance * sin(degrees_to_radians(next_degrees))) + last_y;
-            int next_x = (int)(distance * cos(degrees_to_radians(next_degrees))) + last_x;
+        int distance_offset = 0;
+        for (; distance_offset < 20; distance_offset++) {
+            for (int degrees_offset = 0; degrees_offset < 360; degrees_offset++)
+            {
+                int next_degrees = degrees + degrees_offset;
+                int next_distance = (distance + distance_offset) % 19;
 
-            // TODO 盤外に石を投げてしまったら、反射したい
-            next_x = reflection_x_on_the_wall(next_x);
-            next_y = reflection_y_on_the_wall(next_y);
+                int next_y = (int)((float)next_distance * sin(degrees_to_radians(next_degrees))) + last_y;
+                int next_x = (int)((float)next_distance * cos(degrees_to_radians(next_degrees))) + last_x;
 
-            ret_z = get_z(next_x, next_y);
-            destination_color = board[ret_z];
+                // TODO 盤外に石を投げてしまったら、反射したい
+                next_x = reflection_x_on_the_wall(next_x);
+                next_y = reflection_y_on_the_wall(next_y);
 
-            // 空点には置ける
-            if (destination_color == 0) {
+                ret_z = get_z(next_x, next_y);
+                destination_color = board[ret_z];
 
-                // 自殺手ならやり直し
-                count_dame(ret_z);
-                if (dame == 0) {
-                    PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
-                    continue;
+                // 空点には置ける
+                if (destination_color == 0) {
+
+                    // 自殺手ならやり直し
+                    count_dame(ret_z);
+                    if (dame == 0) {
+                        PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
+                        continue;
+                    }
+
+                    PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
+                    goto loop1_end;
                 }
 
-                PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
-                break;
+                PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
             }
-
-            PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  石がある\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
         }
+    loop1_end:
+        ;
 
         // 置けなかったんだ ----> パスする
-        if (degrees_offset == 360) {
+        if (20 <= distance_offset) {
             return 0;
         }
 
@@ -515,45 +521,51 @@ DLL_EXPORT int cgfgui_thinking(
 
     // ２点の石の距離 ----> 直角三角形の斜辺の長さ
     // それだと距離が遠すぎるので、さらに半分にする
-    distance = hypot(diff_x, diff_y) / 2.0f;
+    distance = (int)(hypot(diff_x, diff_y) / 2.0f);
 
     // ２点から角度を求め、適当に 45°ずらす
     float radians = atan((float)diff_y / (float)diff_x);
     //degrees = (radians_to_degrees(radians) + 45) % 360;
     degrees = (radians_to_degrees(radians) + 0) % 360;
 
-    int degrees_offset = 0;
-    for (; degrees_offset < 360; degrees_offset++) {
-        int next_degrees = degrees + degrees_offset;
-        int next_y = (int)(distance * sin(degrees_to_radians(next_degrees))) + last_y;
-        int next_x = (int)(distance * cos(degrees_to_radians(next_degrees))) + last_x;
+    int distance_offset = 0;
+    for (; distance_offset < 20; distance_offset++) {
+        for (int degrees_offset = 0; degrees_offset < 360; degrees_offset++) {
+            int next_degrees = degrees + degrees_offset;
+            int next_distance = (distance + distance_offset) % 19;
 
-        // TODO 盤外に石を投げてしまったら、反射したい
-        next_x = reflection_x_on_the_wall(next_x);
-        next_y = reflection_y_on_the_wall(next_y);
+            int next_y = (int)((float)next_distance * sin(degrees_to_radians(next_degrees))) + last_y;
+            int next_x = (int)((float)next_distance * cos(degrees_to_radians(next_degrees))) + last_x;
 
-        ret_z = get_z(next_x, next_y);
-        destination_color = board[ret_z];
+            // TODO 盤外に石を投げてしまったら、反射したい
+            next_x = reflection_x_on_the_wall(next_x);
+            next_y = reflection_y_on_the_wall(next_y);
 
-        // 空点には置ける
-        if (destination_color == 0) {
+            ret_z = get_z(next_x, next_y);
+            destination_color = board[ret_z];
 
-            // 自殺手ならやり直し
-            count_dame(ret_z);
-            if (dame == 0) {
-                PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
-                continue;
+            // 空点には置ける
+            if (destination_color == 0) {
+
+                // 自殺手ならやり直し
+                count_dame(ret_z);
+                if (dame == 0) {
+                    PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+                    continue;
+                }
+
+                PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+                goto loop2_end;
             }
 
-            PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
-            break;
+            PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
         }
-
-        PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
     }
+loop2_end:
+    ;
 
     // 置けなかったんだ ----> パスする
-    if (degrees_offset == 360) {
+    if (20 <= distance_offset) {
         return 0;
     }
 
