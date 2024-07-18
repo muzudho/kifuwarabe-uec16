@@ -316,6 +316,11 @@ int reflection_x_on_the_wall(
         x *= -1;
     }
 
+    // 例えば 20 なら、 19 からはみ出た分を 20 から引く
+    if (19 < x) {
+        x = x - (x - 19);
+    }
+
     return x;
 }
 
@@ -328,6 +333,11 @@ int reflection_y_on_the_wall(
     if (y < 0)
     {
         y *= -1;
+    }
+
+    // 例えば 20 なら、 19 からはみ出た分を 20 から引く
+    if (19 < y) {
+        y = y - (y - 19);
     }
 
     return y;
