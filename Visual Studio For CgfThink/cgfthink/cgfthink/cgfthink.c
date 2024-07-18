@@ -475,12 +475,22 @@ DLL_EXPORT int cgfgui_thinking(
 
             ret_z = get_z(next_x, next_y);
             destination_color = board[ret_z];
-            PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
 
             // 空点には置ける
             if (destination_color == 0) {
+
+                // 自殺手ならやり直し
+                count_dame(ret_z);
+                if (dame == 0) {
+                    PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
+                    continue;
+                }
+
+                PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
                 break;
             }
+
+            PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  石がある\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
         }
 
         // 置けなかったんだ ----> パスする
@@ -524,12 +534,22 @@ DLL_EXPORT int cgfgui_thinking(
 
         ret_z = get_z(next_x, next_y);
         destination_color = board[ret_z];
-        PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
 
         // 空点には置ける
         if (destination_color == 0) {
+
+            // 自殺手ならやり直し
+            count_dame(ret_z);
+            if (dame == 0) {
+                PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+                continue;
+            }
+
+            PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
             break;
         }
+
+        PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
     }
 
     // 置けなかったんだ ----> パスする
