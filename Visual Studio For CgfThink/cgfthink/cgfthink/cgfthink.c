@@ -386,6 +386,18 @@ DLL_EXPORT int cgfgui_thinking(
     // 盤に数値を表示するモード
     if (dll_endgame_type == GAME_DRAW_NUMBER) return endgame_draw_number(dll_endgame_board);
 
+
+    //// テスト
+    //{
+    //    int next_x = dll_tesuu + 1;
+    //    int next_y = dll_tesuu + 1;
+    //    ret_z = get_z(next_x, next_y);
+    //    PRT(L"[%4d手目]  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, next_x, next_y, ret_z & 0xff);
+    //    return ret_z;
+    //}
+
+
+
     // 以下、プレイ
 
     // １手目 ----> つまり自分が初手を打つ
@@ -394,7 +406,7 @@ DLL_EXPORT int cgfgui_thinking(
         int next_x = 9;
         int next_y = 9;
         ret_z = get_z(next_x, next_y);
-        PRT(L"[%4d手目]  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, next_x, next_y, ret_z & 0xff);
+        PRT(L"[%4d手目]  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]\n", dll_tesuu + 1, next_x, next_y, ret_z, ret_z & 0xff);
         return ret_z;
     }
 
@@ -406,7 +418,7 @@ DLL_EXPORT int cgfgui_thinking(
     // 相手がＰａｓｓなら自分もＰａｓｓ
     if (last_z == 0) {
         ret_z = 0;
-        PRT(L"[%4d手目]  pass  ret_z:%04x\n", dll_tesuu + 1, ret_z & 0xff);
+        PRT(L"[%4d手目]  pass  ret_z:[%4d, %04x]\n", dll_tesuu + 1, ret_z, ret_z & 0xff);
         return ret_z;
     }
 
@@ -455,7 +467,7 @@ DLL_EXPORT int cgfgui_thinking(
         next_y = reflection_y_on_the_wall(next_y);
 
         ret_z = get_z(next_x, next_y);
-        PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff);
+        PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z, ret_z & 0xff);
         return ret_z;
     }
 
@@ -487,7 +499,7 @@ DLL_EXPORT int cgfgui_thinking(
 
     ret_z = get_z(next_x, next_y);
     PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff);
-    return;
+    return ret_z;
 
     //// パスするぐらいだったら、山下さんのサンプルの思考ルーチンを呼ぶ
     //if (ret_z == 0) {
