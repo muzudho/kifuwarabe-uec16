@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+//#include <cmath>
 
 #include <windows.h>
 
@@ -332,6 +333,26 @@ void setupCurrentPosition(
 }
 
 
+// 棋譜の読取
+void readKifu(
+    int dll_kifu[][3],		// 棋譜
+    // [][0]...座標
+    // [][1]...石の色
+    // [][2]...消費時間（秒)
+    int dll_tesuu 			// 手数
+)
+{
+    // 棋譜の読取
+    for (int i = 0; i < dll_tesuu; i++) {
+        int z = dll_kifu[i][0];	    // 座標、y*256 + x の形で入っている
+        int col = dll_kifu[i][1];	// 石の色
+        int t = dll_kifu[i][2];	    // 消費時間
+        sg_time[i & 1] += t;
+        if (move_one(z, col) != MOVE_SUCCESS) break;
+    }
+}
+
+
 // ########
 // # 主要 #
 // ########
@@ -365,13 +386,7 @@ DLL_EXPORT int cgfgui_thinking(
     setupCurrentPosition(dll_init_board, dll_board_size);
 
     // 棋譜の読取
-    for (i = 0; i < dll_tesuu; i++) {
-        z = dll_kifu[i][0];	    // 座標、y*256 + x の形で入っている
-        col = dll_kifu[i][1];	// 石の色
-        t = dll_kifu[i][2];	    // 消費時間
-        sg_time[i & 1] += t;
-        if (move_one(z, col) != MOVE_SUCCESS) break;
-    }
+    readKifu(dll_kifu, dll_tesuu);
 
 #if 0	// 中断処理を入れる場合のサンプル。0を1にすればコンパイルされます。
     for (i = 0; i < 300; i++) {				// 300*10ms = 3000ms = 3秒待ちます。
@@ -392,9 +407,52 @@ DLL_EXPORT int cgfgui_thinking(
 
     // 以下、プレイ
 
+    // １手目 ----> つまり自分が初手を打つ
     if (dll_tesuu == 0) {
-        // 自分が先手なら天元に打つ
+        // 天元に打つ
         ret_z = get_z(9, 9);
+    }
+    // ２手目
+    else if (dll_tesuu == 1) {
+        // １手前の相手の手
+        int last_z = dll_kifu[dll_tesuu - 1][0];
+        int last_x = get_x(last_z);
+        int last_y = get_y(last_z);
+
+        // 距離
+        float distance = 0.0f;
+
+        // 角度（度数法）。 0 ～ 359
+        int degrees = 0;
+
+        // 相手が天元に打ったなら
+        if (last_z == get_z(9, 9)) {
+            // 距離を 9 とする
+            distance = 9.0f;
+
+            // 角度は適当に 45°とする
+            degrees = 45;
+        }
+        // 相手が天元以外に打ったなら
+        else {
+            // 相手の着手と、天元の距離を測る
+
+            int diff_x = last_x - 9;
+            int diff_y = last_y = 9;
+
+            // 直角三角形の斜辺の長さ
+            distance = hypot(diff_x, diff_y);
+
+            // ２点から角度を求め、適当に 45°ずらす
+            float radians = atan((float)diff_y / (float)diff_x);
+            degrees = (int)(radians * (180 / 3.14159));
+            degrees = (degrees + 45) % 360;
+        }
+
+        int next_y = (int)(distance * sin(degrees * 3.14159f / 180.0f));
+        int next_x = (int)(distance * cos(degrees * 3.14159f / 180.0f));
+
+        ret_z = get_z(next_x, next_y);
     }
     else {
         // 最後の相手の手
