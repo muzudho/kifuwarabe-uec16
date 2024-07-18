@@ -357,7 +357,6 @@ DLL_EXPORT int cgfgui_thinking(
     if (dll_endgame_type == GAME_DRAW_NUMBER) return endgame_draw_number(dll_endgame_board);
 
     // 以下、プレイ
-    PRT(L"dll_tesuu:%4d\n", dll_tesuu);
 
     // １手目 ----> つまり自分が初手を打つ
     if (dll_tesuu == 0) {
@@ -365,7 +364,7 @@ DLL_EXPORT int cgfgui_thinking(
         int next_x = 9;
         int next_y = 9;
         ret_z = get_z(next_x, next_y);
-        PRT(L"dll_tesuu:%4d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu, next_x, next_y, ret_z & 0xff);
+        PRT(L"[%4d手目]  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, next_x, next_y, ret_z & 0xff);
         return ret_z;
     }
 
@@ -377,13 +376,13 @@ DLL_EXPORT int cgfgui_thinking(
     // 相手がＰａｓｓなら自分もＰａｓｓ
     if (last_z == 0) {
         ret_z = 0;
-        PRT(L"dll_tesuu:%4d  pass  ret_z:%04x\n", dll_tesuu, ret_z & 0xff);
+        PRT(L"[%4d手目]  pass  ret_z:%04x\n", dll_tesuu + 1, ret_z & 0xff);
         return ret_z;
     }
 
     int last_x = get_x(last_z);
     int last_y = get_y(last_z);
-    PRT(L"dll_tesuu:%4d  last(x, y):(%2d, %2d)\n", dll_tesuu, last_x, last_y);
+    PRT(L"[%4d手目]  last(x, y):(%2d, %2d)  last_z:%04x\n", dll_tesuu + 1, last_x, last_y, last_z & 0xff);
 
     // 距離
     float distance = 0.0f;
@@ -421,7 +420,7 @@ DLL_EXPORT int cgfgui_thinking(
         int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
         int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
         ret_z = get_z(next_x, next_y);
-        PRT(L"dll_tesuu:%4d  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu, distance, degrees, next_x, next_y, ret_z & 0xff);
+        PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff);
         return ret_z;
     }
 
@@ -431,7 +430,7 @@ DLL_EXPORT int cgfgui_thinking(
     int my_last_z = dll_kifu[dll_tesuu - 2][0];
     int my_last_x = get_x(my_last_z);
     int my_last_y = get_y(my_last_z);
-    PRT(L"dll_tesuu:%4d  my_last_z:%04x  my_last(x, y):(%2d, %2d)\n", dll_tesuu, my_last_z & 0xff, my_last_x, my_last_y);
+    PRT(L"[%4d手目]  my_last(x, y):(%2d, %2d)  my_last_z:%04x\n", dll_tesuu + 1, my_last_x, my_last_y, my_last_z & 0xff);
 
     // 相手の着手と、２手前の自分の着手の距離を測る
     int diff_x = last_x - my_last_x;
@@ -447,7 +446,7 @@ DLL_EXPORT int cgfgui_thinking(
     int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
     int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
     ret_z = get_z(next_x, next_y);
-    PRT(L"dll_tesuu:%4d  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu, distance, degrees, next_x, next_y, ret_z & 0xff);
+    PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff);
     return;
 
     //// パスするぐらいだったら、山下さんのサンプルの思考ルーチンを呼ぶ
