@@ -429,8 +429,8 @@ DLL_EXPORT int cgfgui_thinking(
         
         // １手前の相手が天元に打った場合は、距離９、角度４５°とする。
         if (last_z == get_z(9, 9)) {
-            // 距離を 9 とする
-            distance = 9.0f;
+            // 距離を１９路盤の辺の４分の１とする
+            distance = 19.0f / 4.0f;
 
             // 角度は適当に 45°とする
             degrees = 45;
@@ -442,8 +442,9 @@ DLL_EXPORT int cgfgui_thinking(
             int diff_x = last_x - 9;
             int diff_y = last_y = 9;
 
-            // 直角三角形の斜辺の長さ
-            distance = hypot(diff_x, diff_y);
+            // ２点の石の距離 ----> 直角三角形の斜辺の長さ
+            // それだと距離が遠すぎるので、さらに半分にする
+            distance = hypot(diff_x, diff_y) / 2.0f;
 
             // ２点から角度を求め、適当に 45°ずらす
             float radians = atan((float)diff_y / (float)diff_x);
@@ -491,8 +492,9 @@ DLL_EXPORT int cgfgui_thinking(
     int diff_x = last_x - my_last_x;
     int diff_y = last_y - my_last_y;
 
-    // 直角三角形の斜辺の長さ
-    distance = hypot(diff_x, diff_y);
+    // ２点の石の距離 ----> 直角三角形の斜辺の長さ
+    // それだと距離が遠すぎるので、さらに半分にする
+    distance = hypot(diff_x, diff_y) / 2.0f;
 
     // ２点から角度を求め、適当に 45°ずらす
     float radians = atan((float)diff_y / (float)diff_x);
