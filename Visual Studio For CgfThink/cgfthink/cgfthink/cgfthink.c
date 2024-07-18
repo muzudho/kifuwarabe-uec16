@@ -258,65 +258,6 @@ int subtract_small_from_large(int a, int b) {
     return a - b;
 }
 
-// 中間点に飛ぶ。４象限によって丸め方が異なる
-// 単調に天元に向かって丸める
-//
-// ＧＵＩでは、Y軸が上下逆であることに注意
-// （ＩＩＩ）　（ＩＶ）
-// （ＩＩ）　　（Ｉ）
-//
-int get_middle(int jump_z_backup[]) {
-    // ループの都合上、ＤＡの中間点を求めれば、次のループでＡＢの中間点から始まる
-    int b_x = get_x(jump_z_backup[3]);
-    int b_y = get_y(jump_z_backup[3]);
-    int c_x = get_x(jump_z_backup[0]);
-    int c_y = get_y(jump_z_backup[0]);
-
-    double middle_x = (double)(c_x - b_x) / 2.0 + b_x;
-    double middle_y = (double)(c_y - b_y) / 2.0 + b_y;
-
-    int ret_x;
-    int ret_y;
-    int ret_z;
-
-    // ４象限に分ける。境目は x は [9。 y は (9
-    // 割り算は　０の方に丸められるので、負の無限大の方に丸められるように注意すること
-    if (middle_y <= 9.0) {
-        if (middle_x < 9.0) {
-            //  ＩＩＩ象限
-            ret_x = (int)ceil((double)subtract_small_from_large(c_x, b_x) / 2.0) + min(b_x, c_x);
-            ret_y = (int)ceil((double)subtract_small_from_large(c_y, b_y) / 2.0) + min(b_y, c_y);
-            ret_z = get_z(ret_x, ret_y);
-            PRT(L"（x:%2d y:%2d）　中間点（ＩＩＩ）　（x:%2d y:%2d）→（x:%2d y:%2d）\n", get_x(ret_z), get_y(ret_z), b_x, b_y, c_x, c_y);
-        }
-        else {
-            //　ＩＶ象限
-            ret_x = subtract_small_from_large(c_x, b_x) / 2 + min(b_x, c_x);
-            ret_y = (int)ceil((double)subtract_small_from_large(c_y, b_y) / 2.0) + min(b_y, c_y);
-            ret_z = get_z(ret_x, ret_y);
-            PRT(L"（x:%2d y:%2d）　中間点（ＩＶ）　（x:%2d y:%2d）→（x:%2d y:%2d）\n", get_x(ret_z), get_y(ret_z), b_x, b_y, c_x, c_y);
-        }
-    }
-    else {
-        if (middle_x < 9.0) {
-            // ＩＩ象限
-            ret_x = (int)ceil((double)subtract_small_from_large(c_x, b_x) / 2.0) + min(b_x, c_x);
-            ret_y = subtract_small_from_large(c_y, b_y) / 2 + min(b_y, c_y);
-            ret_z = get_z(ret_x, ret_y);
-            PRT(L"（x:%2d y:%2d）　中間点（ＩＩ）　（x:%2d y:%2d）→（x:%2d y:%2d）\n", get_x(ret_z), get_y(ret_z), b_x, b_y, c_x, c_y);
-        }
-        else {
-            // Ｉ象限
-            ret_x = subtract_small_from_large(c_x, b_x) / 2 + min(b_x, c_x);
-            ret_y = subtract_small_from_large(c_y, b_y) / 2 + min(b_y, c_y);
-            ret_z = get_z(ret_x, ret_y);
-            PRT(L"（x:%2d y:%2d）　中間点（Ｉ）　（x:%2d y:%2d）→（x:%2d y:%2d）\n", get_x(ret_z), get_y(ret_z), b_x, b_y, c_x, c_y);
-        }
-    }
-
-    return ret_z;
-}
-
 
 int radians_to_degrees(float radians) {
     return (int)(radians * (180 / 3.14159));
@@ -416,28 +357,45 @@ DLL_EXPORT int cgfgui_thinking(
     if (dll_endgame_type == GAME_DRAW_NUMBER) return endgame_draw_number(dll_endgame_board);
 
     // 以下、プレイ
-    PRT(L"手数:(%4d)\n", dll_tesuu);
+    PRT(L"dll_tesuu:%4d\n", dll_tesuu);
 
     // １手目 ----> つまり自分が初手を打つ
     if (dll_tesuu == 0) {
         // 天元に打つ
-        ret_z = get_z(9, 9);
+        int next_x = 9;
+        int next_y = 9;
+        ret_z = get_z(next_x, next_y);
+        PRT(L"dll_tesuu:%4d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu, next_x, next_y, ret_z & 0xff);
+        return ret_z;
     }
-    // ２手目
-    else if (dll_tesuu == 1) {
-        // １手前の相手の手
-        int last_z = dll_kifu[dll_tesuu - 1][0];
-        int last_x = get_x(last_z);
-        int last_y = get_y(last_z);
-        PRT(L"１手前の相手の手  last(x, y):(%2d, %2d)\n", last_x, last_y);
 
-        // 距離
-        float distance = 0.0f;
+    // 以下、２手目以降
 
-        // 角度（度数法）。 0 ～ 359
-        int degrees = 0;
+    // １手前の相手の手
+    int last_z = dll_kifu[dll_tesuu - 1][0];
 
-        // 相手が天元に打ったなら
+    // 相手がＰａｓｓなら自分もＰａｓｓ
+    if (last_z == 0) {
+        ret_z = 0;
+        PRT(L"dll_tesuu:%4d  pass  ret_z:%04x\n", dll_tesuu, ret_z & 0xff);
+        return ret_z;
+    }
+
+    int last_x = get_x(last_z);
+    int last_y = get_y(last_z);
+    PRT(L"dll_tesuu:%4d  last(x, y):(%2d, %2d)\n", dll_tesuu, last_x, last_y);
+
+    // 距離
+    float distance = 0.0f;
+
+    // 角度（度数法）。 0 ～ 359
+    int degrees = 0;
+
+    // ２手前の自分の手
+    if (dll_tesuu == 1) {
+        // ２手前の自分の手はない。
+        
+        // １手前の相手が天元に打った場合は、距離９、角度４５°とする。
         if (last_z == get_z(9, 9)) {
             // 距離を 9 とする
             distance = 9.0f;
@@ -445,7 +403,7 @@ DLL_EXPORT int cgfgui_thinking(
             // 角度は適当に 45°とする
             degrees = 45;
         }
-        // 相手が天元以外に打ったなら
+        // ２手前の自分は天元に打ったものと想定して、仮の値を入れる。
         else {
             // 相手の着手と、天元の距離を測る
 
@@ -462,69 +420,35 @@ DLL_EXPORT int cgfgui_thinking(
 
         int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
         int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
-        PRT(L"２手目  next(x, y):(%2d, %2d)\n", next_x, next_y);
-
         ret_z = get_z(next_x, next_y);
+        PRT(L"dll_tesuu:%4d  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu, distance, degrees, next_x, next_y, ret_z & 0xff);
+        return ret_z;
     }
-    else {
-        // 最後の相手の手
-        int last_z = dll_kifu[dll_tesuu - 1][0];
 
-        // 相手がＰａｓｓなら自分もＰａｓｓ
-        if (last_z == 0) {
-            ret_z = 0;
-        }
-        else {
-            int jump_z_backup[4];
+    // 以下、３手目以降
 
-            // 打ち手の余地がなくなるまでループ
-            for (;;) {
-                for (int jump = 0; jump < 4; jump++) {
+    // ２手前の自分の手
+    int my_last_z = dll_kifu[dll_tesuu - 2][0];
+    int my_last_x = get_x(my_last_z);
+    int my_last_y = get_y(my_last_z);
+    PRT(L"dll_tesuu:%4d  my_last_z:%04x  my_last(x, y):(%2d, %2d)\n", dll_tesuu, my_last_z & 0xff, my_last_x, my_last_y);
 
-                    PRT(L"（x:%2d y:%2d）　最後の手\n", get_x(last_z), get_y(last_z));
+    // 相手の着手と、２手前の自分の着手の距離を測る
+    int diff_x = last_x - my_last_x;
+    int diff_y = last_y - my_last_y;
 
-                    int last_x = get_x(last_z);
-                    int last_y = get_y(last_z);
+    // 直角三角形の斜辺の長さ
+    distance = hypot(diff_x, diff_y);
 
-                    // 相手に天元に打たれてしまったら
-                    if (is_tengen(last_x, last_y)) {
-                        // Pass
-                        ret_z = 0;
+    // ２点から角度を求め、適当に 45°ずらす
+    float radians = atan((float)diff_y / (float)diff_x);
+    degrees = (radians_to_degrees(radians) + 45) % 360;
 
-                        // 打ち手を探すループから抜ける
-                        PRT(L"天元にミラー手はできないから終わり");
-                        goto loop_end;
-                    }
-                    else {
-                        // 単調に天元に向かっていくはず
-                        ret_z = get_mirror_z(last_z);
-                        PRT(L"（x:%2d y:%2d）　通常ミラー手\n", get_x(ret_z), get_y(ret_z));
-                    }
-
-                    jump_z_backup[jump] = ret_z;
-
-                    if (can_put(ret_z)) {
-                        // 打ち手を探すループから抜ける
-                        goto loop_end;
-                    }
-
-                    // そうでなければ、打てなかった手を最後の手とみなして、繰り返しジャンプ
-                    PRT(L"打てなかった手を最後の手とみなして、繰り返しジャンプ\n");
-                    last_z = ret_z;
-                }
-
-                // 永遠にジャンプすることになった
-
-                // 次は中間点へ、打ち手の探し直し
-                PRT(L"次は中間点へ、打ち手の探し直し\n");
-                // 中間点へ飛ぶ（４象限によって丸め方は異なる）
-                last_z = get_middle(jump_z_backup);
-            }
-        loop_end:
-            ;
-
-        }
-    }
+    int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
+    int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
+    ret_z = get_z(next_x, next_y);
+    PRT(L"dll_tesuu:%4d  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x\n", dll_tesuu, distance, degrees, next_x, next_y, ret_z & 0xff);
+    return;
 
     //// パスするぐらいだったら、山下さんのサンプルの思考ルーチンを呼ぶ
     //if (ret_z == 0) {
@@ -534,10 +458,10 @@ DLL_EXPORT int cgfgui_thinking(
     //    PRT(L"（x:%2d y:%2d）　パスするぐらいだったら、山下さんのサンプルの思考ルーチンを呼ぶ\n", get_x(ret_z), get_y(ret_z));
     //}
 
-    PRT(L"思考時間：先手=%d秒、後手=%d秒\n", sg_time[0], sg_time[1]);
-    PRT(L"着手=(%2d,%2d)(%04x), 手数=%d,手番=%d,盤size=%d,komi=%.1f\n", (ret_z & 0xff), (ret_z >> 8), ret_z, dll_tesuu, dll_black_turn, dll_board_size, dll_komi);
-    //	print_board();
-    return ret_z;
+    //PRT(L"思考時間：先手=%d秒、後手=%d秒\n", sg_time[0], sg_time[1]);
+    //PRT(L"着手=(%2d,%2d)(%04x), 手数=%d,手番=%d,盤size=%d,komi=%.1f\n", (ret_z & 0xff), (ret_z >> 8), ret_z, dll_tesuu, dll_black_turn, dll_board_size, dll_komi);
+    ////	print_board();
+    //return ret_z;
 }
 
 
