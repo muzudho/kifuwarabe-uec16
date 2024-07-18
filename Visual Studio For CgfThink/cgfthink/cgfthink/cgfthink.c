@@ -363,6 +363,9 @@ DLL_EXPORT int cgfgui_thinking(
 {
     int z, col, t, i, ret_z;
 
+    // 石を置く先に、石が無いか、石の色を確認
+    int destination_color;
+
     // 現在局面を作る
     setupCurrentPosition(dll_init_board, dll_board_size);
 
@@ -447,15 +450,31 @@ DLL_EXPORT int cgfgui_thinking(
             degrees = (radians_to_degrees(radians) + 45) % 360;
         }
 
-        int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
-        int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
+        int degrees_offset = 0;
+        for (; degrees_offset < 360; degrees_offset++)
+        {
+            int next_y = (int)(distance * sin(degrees_to_radians(degrees + degrees_offset)));
+            int next_x = (int)(distance * cos(degrees_to_radians(degrees + degrees_offset)));
 
-        // TODO 盤外に石を投げてしまったら、反射したい
-        next_x = reflection_x_on_the_wall(next_x);
-        next_y = reflection_y_on_the_wall(next_y);
+            // TODO 盤外に石を投げてしまったら、反射したい
+            next_x = reflection_x_on_the_wall(next_x);
+            next_y = reflection_y_on_the_wall(next_y);
 
-        ret_z = get_z(next_x, next_y);
-        PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z, ret_z & 0xff, board[ret_z]);
+            ret_z = get_z(next_x, next_y);
+            destination_color = board[ret_z];
+            PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
+
+            // 空点には置ける
+            if (destination_color == 0) {
+                break;
+            }
+        }
+
+        // 置けなかったんだ ----> パスする
+        if (degrees_offset == 360) {
+            return 0;
+        }
+
         return ret_z;
     }
 
@@ -478,15 +497,30 @@ DLL_EXPORT int cgfgui_thinking(
     float radians = atan((float)diff_y / (float)diff_x);
     degrees = (radians_to_degrees(radians) + 45) % 360;
 
-    int next_y = (int)(distance * sin(degrees_to_radians(degrees)));
-    int next_x = (int)(distance * cos(degrees_to_radians(degrees)));
+    int degrees_offset = 0;
+    for (; degrees_offset < 360; degrees_offset++) {
+        int next_y = (int)(distance * sin(degrees_to_radians(degrees + degrees_offset)));
+        int next_x = (int)(distance * cos(degrees_to_radians(degrees + degrees_offset)));
 
-    // TODO 盤外に石を投げてしまったら、反射したい
-    next_x = reflection_x_on_the_wall(next_x);
-    next_y = reflection_y_on_the_wall(next_y);
+        // TODO 盤外に石を投げてしまったら、反射したい
+        next_x = reflection_x_on_the_wall(next_x);
+        next_y = reflection_y_on_the_wall(next_y);
 
-    ret_z = get_z(next_x, next_y);
-    PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff, board[ret_z]);
+        ret_z = get_z(next_x, next_y);
+        destination_color = board[ret_z];
+        PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff, destination_color);
+
+        // 空点には置ける
+        if (destination_color == 0) {
+            break;
+        }
+    }
+
+    // 置けなかったんだ ----> パスする
+    if (degrees_offset == 360) {
+        return 0;
+    }
+
     return ret_z;
 
     //// パスするぐらいだったら、山下さんのサンプルの思考ルーチンを呼ぶ
