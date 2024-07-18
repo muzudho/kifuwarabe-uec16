@@ -316,6 +316,22 @@ int get_middle(int jump_z_backup[]) {
     return ret_z;
 }
 
+
+// 現在局面を作る
+void setupCurrentPosition(
+    int dll_init_board[],	// 初期盤面
+    int dll_board_size		// 盤面のサイズ
+)
+{
+    // 現在局面を棋譜と初期盤面から作る
+    for (int i = 0; i < BOARD_MAX; i++) board[i] = dll_init_board[i];	// 初期盤面をコピー
+    board_size = dll_board_size;    // 盤サイズをグローバル変数に入れる
+    hama[0] = hama[1] = 0;          // アゲハマの数を０にする
+    sg_time[0] = sg_time[1] = 0;	// 累計思考時間を０にする
+    kou_z = 0;                      // コウのマス番号を無しにする
+}
+
+
 // ########
 // # 主要 #
 // ########
@@ -345,12 +361,8 @@ DLL_EXPORT int cgfgui_thinking(
 {
     int z, col, t, i, ret_z;
 
-    // 現在局面を棋譜と初期盤面から作る
-    for (i = 0; i < BOARD_MAX; i++) board[i] = dll_init_board[i];	// 初期盤面をコピー
-    board_size = dll_board_size;    // 盤サイズをグローバル変数に入れる
-    hama[0] = hama[1] = 0;          // アゲハマの数を０にする
-    sg_time[0] = sg_time[1] = 0;	// 累計思考時間を０にする
-    kou_z = 0;                      // コウのマス番号を無しにする
+    // 現在局面を作る
+    setupCurrentPosition(dll_init_board, dll_board_size);
 
     // 棋譜の読取
     for (i = 0; i < dll_tesuu; i++) {
