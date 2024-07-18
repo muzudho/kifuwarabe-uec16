@@ -453,8 +453,9 @@ DLL_EXPORT int cgfgui_thinking(
         int degrees_offset = 0;
         for (; degrees_offset < 360; degrees_offset++)
         {
-            int next_y = (int)(distance * sin(degrees_to_radians(degrees + degrees_offset)));
-            int next_x = (int)(distance * cos(degrees_to_radians(degrees + degrees_offset)));
+            int next_degrees = degrees + degrees_offset;
+            int next_y = (int)(distance * sin(degrees_to_radians(next_degrees)));
+            int next_x = (int)(distance * cos(degrees_to_radians(next_degrees)));
 
             // TODO 盤外に石を投げてしまったら、反射したい
             next_x = reflection_x_on_the_wall(next_x);
@@ -462,7 +463,7 @@ DLL_EXPORT int cgfgui_thinking(
 
             ret_z = get_z(next_x, next_y);
             destination_color = board[ret_z];
-            PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
+            PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
 
             // 空点には置ける
             if (destination_color == 0) {
@@ -499,8 +500,9 @@ DLL_EXPORT int cgfgui_thinking(
 
     int degrees_offset = 0;
     for (; degrees_offset < 360; degrees_offset++) {
-        int next_y = (int)(distance * sin(degrees_to_radians(degrees + degrees_offset)));
-        int next_x = (int)(distance * cos(degrees_to_radians(degrees + degrees_offset)));
+        int next_degrees = degrees + degrees_offset;
+        int next_y = (int)(distance * sin(degrees_to_radians(next_degrees)));
+        int next_x = (int)(distance * cos(degrees_to_radians(next_degrees)));
 
         // TODO 盤外に石を投げてしまったら、反射したい
         next_x = reflection_x_on_the_wall(next_x);
@@ -508,7 +510,7 @@ DLL_EXPORT int cgfgui_thinking(
 
         ret_z = get_z(next_x, next_y);
         destination_color = board[ret_z];
-        PRT(L"[%4d手目]  distance:%2.2f  degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, distance, degrees, next_x, next_y, ret_z & 0xff, destination_color);
+        PRT(L"[%4d手目]  distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
 
         // 空点には置ける
         if (destination_color == 0) {
