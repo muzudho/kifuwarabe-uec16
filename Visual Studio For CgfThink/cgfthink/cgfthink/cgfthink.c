@@ -527,7 +527,7 @@ DLL_EXPORT int cgfgui_thinking(
     PRT(L"[%4d手目]  last(x, y):(%2d, %2d)  last_z:%04x\n", dll_tesuu + 1, last_x, last_y, last_z & 0xff);
 
     // 距離 ----> 剰余を使いたいので、整数にします
-    int distance = 0;
+    float distance_f = 0;
 
     // 角度（度数法）の初期値。 0 ～ 359。 石が置けなかったとき、この角度は変更されていく
     int starting_angle_degrees = 0;
@@ -536,15 +536,15 @@ DLL_EXPORT int cgfgui_thinking(
     // # ２手目、かつ相手が初手に天元を打ったケース
     // ##########
     //
-    //      距離は 19/4、角度 ４５°とする。
+    //      距離は 6 * √2、角度 ４５°とする。
     //
     if (dll_tesuu == 1 && last_z == get_z(9, 9)) {
-        // 距離を１９路盤の辺の４分の１とする
-        distance = (int)(19.0f / 4.0f);
+        // 距離
+        distance_f = 6 * 1.4142;
 
         // 角度
         starting_angle_degrees = 45;
-        PRT(L"[%4d手目]  distance:%2d  starting_angle_degrees:%3d  相手は初手を天元に打った\n", dll_tesuu + 1, distance, starting_angle_degrees);
+        PRT(L"[%4d手目]  distance_f:%2.2f  starting_angle_degrees:%3d  相手は初手を天元に打った\n", dll_tesuu + 1, distance_f, starting_angle_degrees);
     }
     else {
         PRT(L"[%4d手目]  相手は初手を天元以外に打った\n", dll_tesuu + 1);
@@ -591,7 +591,7 @@ DLL_EXPORT int cgfgui_thinking(
 
         // ２点の石の距離 ----> 直角三角形の斜辺の長さ
         // それだと距離が遠すぎるので、さらに半分にする
-        distance = (int)(hypot(diff_x, diff_y) / 2.0f);
+        distance_f = hypot(diff_x, diff_y) / 2.0f;
 
         // ２点から角度を求める
         float radians = atan((float)diff_y / (float)diff_x);
@@ -604,10 +604,10 @@ DLL_EXPORT int cgfgui_thinking(
 
     for (; i_offset_distance < 55; i_offset_distance++) {
         int offset_distance = offset_distance_55[i_offset_distance];
-        int next_distance = (distance + offset_distance) % 19;
+        float next_distance_f = distance_f + (float)offset_distance;
 
         // 距離０では、１つ前の手の石の上になるから、無視する
-        if (next_distance == 0) {
+        if (-1 < next_distance_f && next_distance_f < 1) {
             continue;
         }
 
@@ -616,8 +616,8 @@ DLL_EXPORT int cgfgui_thinking(
             int next_degrees = starting_angle_degrees + offset_angle_degrees;
 
             // TODO radians は整数型（0, 1）にした方が面白い？
-            int offset_y = (int)((float)next_distance * sin((int)degrees_to_radians(next_degrees)));
-            int offset_x = (int)((float)next_distance * cos((int)degrees_to_radians(next_degrees)));
+            int offset_y = (int)(next_distance_f * sin((int)degrees_to_radians(next_degrees)));
+            int offset_x = (int)(next_distance_f * cos((int)degrees_to_radians(next_degrees)));
 
             int next_y_before_conditioning = offset_y + last_y;
             int next_x_before_conditioning = offset_x + last_x;
@@ -636,7 +636,7 @@ DLL_EXPORT int cgfgui_thinking(
                 count_liberty(ret_z);
                 if (g_liberty == 0) {
                     PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
-                    PRT(L"            next_distance:%2d  =  (  distance:%2d  +  offset_distance:%2d)\n", next_distance, distance, offset_distance);
+                    PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                     PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
                     PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                     PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
@@ -646,7 +646,7 @@ DLL_EXPORT int cgfgui_thinking(
                 // 多分、コウならやり直し
                 if (maybe_it_is_ko(dll_kifu, dll_tesuu, ret_z)) {
                     PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
-                    PRT(L"            next_distance:%2d  =  (  distance:%2d  +  offset_distance:%2d)\n", next_distance, distance, offset_distance);
+                    PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                     PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
                     PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                     PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
@@ -654,7 +654,7 @@ DLL_EXPORT int cgfgui_thinking(
                 }
 
                 PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
-                PRT(L"            next_distance:%2d  =  (  distance:%2d  +  offset_distance:%2d)\n", next_distance, distance, offset_distance);
+                PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                 PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
                 PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                 PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
@@ -662,7 +662,7 @@ DLL_EXPORT int cgfgui_thinking(
             }
 
             PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
-            PRT(L"            next_distance:%2d  =  (  distance:%2d  +  offset_distance:%2d)\n", next_distance, distance, offset_distance);
+            PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
             PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
             PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
             PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
