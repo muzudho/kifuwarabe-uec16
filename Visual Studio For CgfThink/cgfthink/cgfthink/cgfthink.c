@@ -109,8 +109,8 @@ int hama[2];	// [0]... 黒が取った石の数, [1]...白が取った石の数
 int sg_time[2];	// 累計思考時間
 
 // 角度に乱数を入れていないと、同じパターンでハメれるので、乱数を入れておく
-int angle_degrees_360[360];
-int angle_cursor;
+int g_angle_degrees_360[360];
+int g_angle_cursor;
 
 // 19 に √2 を掛けるとおよそ 27。 上にも下にも -27 ～ 27 の数を、振動させながら用意する
 int offset_distance_55[55];
@@ -203,7 +203,7 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
     // ##########
 
     for (int i = 0; i < 360; i++) {
-        angle_degrees_360[i] = i;
+        g_angle_degrees_360[i] = i;
     }
 
     // 2πe を掛ければ、だいたい混ざる
@@ -214,9 +214,9 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
             int j = rand() % size;
 
             // swap
-            int temp = angle_degrees_360[i];
-            angle_degrees_360[j] = angle_degrees_360[i];
-            angle_degrees_360[i] = temp;
+            int temp = g_angle_degrees_360[j];
+            g_angle_degrees_360[j] = g_angle_degrees_360[i];
+            g_angle_degrees_360[i] = temp;
         }
     }
 
@@ -430,8 +430,8 @@ int maybe_it_is_ko(
 
 // 角度を取得
 int next_angle_degrees() {
-    angle_cursor = (angle_cursor + 1) % 360;
-    return angle_degrees_360[angle_cursor];
+    g_angle_cursor = (g_angle_cursor + 1) % 360;
+    return g_angle_degrees_360[g_angle_cursor];
 }
 
 
