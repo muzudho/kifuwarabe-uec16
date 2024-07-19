@@ -216,14 +216,18 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
 
     // 360°を８分割してセット
     for (int i = 0; i < 45; i++) {
-        g_angle_degrees_360[i + 0] = i + 0;
-        g_angle_degrees_360[i + 1] = i + 45;
-        g_angle_degrees_360[i + 2] = i + 90;
-        g_angle_degrees_360[i + 3] = i + 135;
-        g_angle_degrees_360[i + 4] = i + 180;
-        g_angle_degrees_360[i + 5] = i + 225;
-        g_angle_degrees_360[i + 6] = i + 270;
-        g_angle_degrees_360[i + 7] = i + 315;
+        g_angle_degrees_360[i * 8 + 0] = i + 0;
+        g_angle_degrees_360[i * 8 + 1] = i + 45;
+        g_angle_degrees_360[i * 8 + 2] = i + 90;
+        g_angle_degrees_360[i * 8 + 3] = i + 135;
+        g_angle_degrees_360[i * 8 + 4] = i + 180;
+        g_angle_degrees_360[i * 8 + 5] = i + 225;
+        g_angle_degrees_360[i * 8 + 6] = i + 270;
+        g_angle_degrees_360[i * 8 + 7] = i + 315;
+    }
+
+    for (int i = 0; i < G_ANGLE_DEGREES_360_SIZE; i++) {
+        PRT(L"[angle]  i:%3d  angle:%3d", i, g_angle_degrees_360[i]);
     }
 
     // ##########
@@ -645,7 +649,7 @@ DLL_EXPORT int cgfgui_thinking(
                 if (g_liberty == 0) {
                     PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                     PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
-                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
+                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                     PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                     PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                     continue;
@@ -655,7 +659,7 @@ DLL_EXPORT int cgfgui_thinking(
                 if (maybe_it_is_ko(dll_kifu, dll_tesuu, ret_z)) {
                     PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                     PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
-                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
+                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                     PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                     PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                     continue;
@@ -663,7 +667,7 @@ DLL_EXPORT int cgfgui_thinking(
 
                 PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                 PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
-                PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
+                PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                 PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                 PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                 goto end_of_loop_for_distance;
@@ -671,7 +675,7 @@ DLL_EXPORT int cgfgui_thinking(
 
             PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
             PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
-            PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
+            PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
             PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
             PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
         }
