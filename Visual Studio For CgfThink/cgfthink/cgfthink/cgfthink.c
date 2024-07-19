@@ -512,7 +512,7 @@ DLL_EXPORT int cgfgui_thinking(
             // 相手の着手と、天元の距離を測る
 
             diff_x = last_x - 9;
-            diff_y = last_y = 9;
+            diff_y = last_y - 9;
             PRT(L"[%4d手目]  相手は初手を天元以外に打った\n", dll_tesuu + 1);
         }
         // ##########
