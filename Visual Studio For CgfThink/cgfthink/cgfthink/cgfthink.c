@@ -110,6 +110,7 @@ int sg_time[2];	// 累計思考時間
 
 // 角度に乱数を入れていないと、同じパターンでハメれるので、乱数を入れておく
 int angle_degrees_360[360];
+int angle_cursor;
 
 #define UNCOL(x) (3-(x))	// 石の色を反転させる
 
@@ -403,6 +404,13 @@ int maybe_it_is_ko(
 }
 
 
+// 角度を取得
+int next_angle_degrees() {
+    angle_cursor = (angle_cursor + 1) % 360;
+    return angle_degrees_360[angle_cursor];
+}
+
+
 // ########
 // # 主要 #
 // ########
@@ -572,7 +580,7 @@ DLL_EXPORT int cgfgui_thinking(
     // 石を置けなかったら、角度を変えて置く。それでも置けなかったら、距離を変えて置く
     for (; distance_offset < 20; distance_offset++) {
         for (int i_angle = 0; i_angle < 360; i_angle++) {
-            int offset_angle_degrees = angle_degrees_360[i_angle];
+            int offset_angle_degrees = next_angle_degrees();
             int next_degrees = starting_angle_degrees + offset_angle_degrees;
             int next_distance = (distance + distance_offset) % 19;
 
