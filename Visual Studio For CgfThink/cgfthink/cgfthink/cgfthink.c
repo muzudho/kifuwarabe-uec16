@@ -533,7 +533,7 @@ DLL_EXPORT int cgfgui_thinking(
     int last_y = get_y(last_z);
     PRT(L"[%4d手目]  last(x, y):(%2d, %2d)  last_z:%04x\n", dll_tesuu + 1, last_x, last_y, last_z & 0xff);
 
-    // 距離 ----> 剰余を使いたいので、整数にします
+    // 距離
     float distance_f = 0.0f;
 
     // 角度（度数法）の初期値。 0 ～ 359。 石が置けなかったとき、この角度は変更されていく
@@ -599,7 +599,8 @@ DLL_EXPORT int cgfgui_thinking(
 
         // ２点の石の距離 ----> 直角三角形の斜辺の長さ
         // それだと距離が遠すぎるので、さらに半分にする
-        distance_f = hypot(diff_x, diff_y) / 2.0f;
+        // さらに切り捨てで交点１つ分短くなっているように見えるので 0.5 足す
+        distance_f = hypot(diff_x, diff_y) / 2.0f + 0.5f;
 
         // ２点から角度を求める
         float radians = atan((float)diff_y / (float)diff_x);
