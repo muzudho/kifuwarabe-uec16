@@ -224,18 +224,8 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
     // # 距離
     // ##########
 
-    // 19 に √2 を掛けるとおよそ 27。 上にも下にも -27 ～ 27 の数を、振動させながら用意する
-    //int i = 0;
-    //offset_distance_55[i] = 0;
-    //i++;
-    //for (int radius = 1; radius < 28; radius++) {
-    //    offset_distance_55[i] = radius;
-    //    i++;
-    //    offset_distance_55[i] = -radius;
-    //    i++;
-    //}
-
     // 囲碁は、離して打つ方が良い手が多い
+    // 19 に √2 を掛けるとおよそ 27。 まず、初期位置より離していく手を考え、そのあと、初期位置より手前にしていく手を考える
     int i = 0;
     offset_distance_55[i] = 0;
     i++;
