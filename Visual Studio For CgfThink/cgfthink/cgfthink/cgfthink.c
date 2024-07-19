@@ -126,7 +126,6 @@ void count_dame(int tz);				// ダメと石の数を調べる
 void count_dame_sub(int tz, int col);	// ダメと石の数を調べる再帰関数
 int move_one(int z, int col);			// 1手進める。z ... 座標、col ... 石の色
 void print_board(void);					// 現在の盤面を表示
-int think_sample(int col);
 int get_z(int x, int y);					// (x,y)を1つの座標に変換
 int endgame_status(int endgame_board[]);		// 終局処理
 int endgame_draw_figure(int endgame_board[]);	// 図形を描く
@@ -148,6 +147,7 @@ void PassWindowsSystem(void)
 
 #define PRT_LEN_MAX 256			// 最大256文字まで出力可
 static HANDLE hOutput = INVALID_HANDLE_VALUE;	// コンソールに出力するためのハンドル
+
 
 // printf()の代用関数。
 void PRT(const wchar_t* fmt, ...)
@@ -192,6 +192,7 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
     // この下に、メモリの確保など必要な場合のコードを記述してください。
 }
 
+
 // 対局終了時に一度だけ呼ばれます。
 // メモリの解放などが必要な場合にここに記述してください。
 DLL_EXPORT void cgfgui_thinking_close(void)
@@ -200,17 +201,20 @@ DLL_EXPORT void cgfgui_thinking_close(void)
     // この下に、メモリの解放など必要な場合のコードを記述してください。
 }
 
+
 // z を x へ。基数
 int get_x(int z)
 {
     return z % 256 - 1;
 }
 
+
 // z を y へ。基数
 int get_y(int z)
 {
     return (z / 256) - 1;
 }
+
 
 // 最後の手に対して、９０°回転したところを返す
 int get_mirror_z(int last_z)
@@ -223,6 +227,7 @@ int get_mirror_z(int last_z)
 
     return get_z(new_x, new_y);
 }
+
 
 // 置けるかどうか判定
 int can_put(int ret_z) {
@@ -244,6 +249,7 @@ int can_put(int ret_z) {
     // 置けない理由がないから置ける
     return 1;
 }
+
 
 // 天元か？
 int is_tengen(int x, int y) {
@@ -269,6 +275,7 @@ int degrees_to_radians(int degrees) {
     return degrees * 3.14159f / 180.0f;
 
 }
+
 
 // 現在局面を作る
 void setupCurrentPosition(
@@ -345,13 +352,17 @@ int reflection_y_on_the_wall(
 
 
 // コウ判定 ----> 簡易の物
+// 
+// FIXME コウでないケースも、コウと判断することがある。
+// 大石を取られた２手後に、大石の一部に打ち込む手とか。
+// 正確にやるなら、元々書いてあった山下さんのソースを取り入れること
 //
 // Returns
 // -------
 // is_ko
 //      0: False
 //      1: True
-int is_ko(
+int maybe_it_is_ko(
     int dll_kifu[][3],		// 棋譜
                             // [n][]...手数
                             // [][0]...座標
@@ -366,7 +377,7 @@ int is_ko(
         return 0;
     }
 
-    // ２手前、つまり自分の１つ前と同じ交点に着手しようとしたら、コウ
+    // ２手前、つまり自分の１つ前と同じ交点に着手しようとしたら、（コウでないケースもあるが）コウとする
     return dll_kifu[dll_tesuu - 2][0] == ret_z;
 }
 
@@ -429,7 +440,14 @@ DLL_EXPORT int cgfgui_thinking(
 
     // 以下、プレイ
 
-    // １手目 ----> つまり自分が初手を打つ
+    PRT(L"思考時間：先手=%d秒、後手=%d秒\n", sg_time[0], sg_time[1]);
+
+    // ##########
+    // # １手目
+    // ##########
+    //
+    //      つまり自分（コンピュータ）が初手を打つケース
+    //
     if (dll_tesuu == 0) {
         // 天元に打つ
         int next_x = 9;
@@ -461,7 +479,14 @@ DLL_EXPORT int cgfgui_thinking(
     // 角度（度数法）。 0 ～ 359
     int degrees = 0;
 
-    // ２手前の自分の手
+    int distance_offset = 0;
+
+    // ##########
+    // # ２手目
+    // ##########
+    //
+    //      つまり自分（コンピュータ）が２手目を打つケース
+    //
     if (dll_tesuu == 1) {
         // ２手前の自分の手はない。
         
@@ -473,6 +498,7 @@ DLL_EXPORT int cgfgui_thinking(
             // 角度は適当に 45°とする
             //degrees = 45;
             degrees = 0;
+            PRT(L"[%4d手目]  distance:%2d  degrees:%3d  相手は初手を天元に打った\n", dll_tesuu + 1, distance, degrees);
         }
         // ２手前の自分は天元に打ったものと想定して、仮の値を入れる。
         else {
@@ -488,81 +514,38 @@ DLL_EXPORT int cgfgui_thinking(
             // ２点から角度を求め、適当に 45°ずらす
             float radians = atan((float)diff_y / (float)diff_x);
             degrees = (radians_to_degrees(radians) + 45) % 360;
+            PRT(L"[%4d手目]  distance:%2d  degrees:%3d  相手は初手を天元以外に打った\n", dll_tesuu + 1, distance, degrees);
         }
+    }
+    // ##########
+    // # 以下、３手目以降
+    // ##########
+    //
+    //      つまり、２手前の手が存在するケース
+    // 
+    else {
 
-        int distance_offset = 0;
-        for (; distance_offset < 20; distance_offset++) {
-            for (int degrees_offset = 0; degrees_offset < 360; degrees_offset++)
-            {
-                int next_degrees = degrees + degrees_offset;
-                int next_distance = (distance + distance_offset) % 19;
+        // ２手前の自分の手
+        int my_last_z = dll_kifu[dll_tesuu - 2][0];
+        int my_last_x = get_x(my_last_z);
+        int my_last_y = get_y(my_last_z);
+        PRT(L"[%4d手目]  my_last(x, y):(%2d, %2d)  my_last_z:%04x\n", dll_tesuu + 1, my_last_x, my_last_y, my_last_z & 0xff);
 
-                int next_y = (int)((float)next_distance * sin(degrees_to_radians(next_degrees))) + last_y;
-                int next_x = (int)((float)next_distance * cos(degrees_to_radians(next_degrees))) + last_x;
+        // 相手の着手と、２手前の自分の着手の距離を測る
+        int diff_x = last_x - my_last_x;
+        int diff_y = last_y - my_last_y;
 
-                // TODO 盤外に石を投げてしまったら、反射したい
-                next_x = reflection_x_on_the_wall(next_x);
-                next_y = reflection_y_on_the_wall(next_y);
+        // ２点の石の距離 ----> 直角三角形の斜辺の長さ
+        // それだと距離が遠すぎるので、さらに半分にする
+        distance = (int)(hypot(diff_x, diff_y) / 2.0f);
 
-                ret_z = get_z(next_x, next_y);
-                destination_color = board[ret_z];
-
-                // 空点には置ける
-                if (destination_color == 0) {
-
-                    // 自殺手ならやり直し
-                    count_dame(ret_z);
-                    if (dame == 0) {
-                        PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
-                        continue;
-                    }
-
-                    // コウならやり直し
-                    if (is_ko(dll_kifu, dll_tesuu, ret_z)) {
-                        PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
-                        continue;
-                    }
-
-                    PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
-                    goto loop1_end;
-                }
-
-                PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
-            }
-        }
-    loop1_end:
-        ;
-
-        // 置けなかったんだ ----> パスする
-        if (20 <= distance_offset) {
-            return 0;
-        }
-
-        return ret_z;
+        // ２点から角度を求め、適当に 45°ずらす
+        float radians = atan((float)diff_y / (float)diff_x);
+        //degrees = (radians_to_degrees(radians) + 45) % 360;
+        degrees = (radians_to_degrees(radians) + 0) % 360;
     }
 
-    // 以下、３手目以降
-
-    // ２手前の自分の手
-    int my_last_z = dll_kifu[dll_tesuu - 2][0];
-    int my_last_x = get_x(my_last_z);
-    int my_last_y = get_y(my_last_z);
-    PRT(L"[%4d手目]  my_last(x, y):(%2d, %2d)  my_last_z:%04x\n", dll_tesuu + 1, my_last_x, my_last_y, my_last_z & 0xff);
-
-    // 相手の着手と、２手前の自分の着手の距離を測る
-    int diff_x = last_x - my_last_x;
-    int diff_y = last_y - my_last_y;
-
-    // ２点の石の距離 ----> 直角三角形の斜辺の長さ
-    // それだと距離が遠すぎるので、さらに半分にする
-    distance = (int)(hypot(diff_x, diff_y) / 2.0f);
-
-    // ２点から角度を求め、適当に 45°ずらす
-    float radians = atan((float)diff_y / (float)diff_x);
-    //degrees = (radians_to_degrees(radians) + 45) % 360;
-    degrees = (radians_to_degrees(radians) + 0) % 360;
-
-    int distance_offset = 0;
+    // 石を置けなかったら、角度を変えて置く。それでも置けなかったら、距離を変えて置く
     for (; distance_offset < 20; distance_offset++) {
         for (int degrees_offset = 0; degrees_offset < 360; degrees_offset++) {
             int next_degrees = degrees + degrees_offset;
@@ -571,7 +554,7 @@ DLL_EXPORT int cgfgui_thinking(
             int next_y = (int)((float)next_distance * sin(degrees_to_radians(next_degrees))) + last_y;
             int next_x = (int)((float)next_distance * cos(degrees_to_radians(next_degrees))) + last_x;
 
-            // TODO 盤外に石を投げてしまったら、反射したい
+            // 盤外に石を投げてしまったら、反射したい
             next_x = reflection_x_on_the_wall(next_x);
             next_y = reflection_y_on_the_wall(next_y);
 
@@ -588,20 +571,20 @@ DLL_EXPORT int cgfgui_thinking(
                     continue;
                 }
 
-                // コウならやり直し
-                if (is_ko(dll_kifu, dll_tesuu, ret_z)) {
+                // 多分、コウならやり直し
+                if (maybe_it_is_ko(dll_kifu, dll_tesuu, ret_z)) {
                     PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
                     continue;
                 }
 
-                PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
-                goto loop2_end;
+                PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+                goto end_of_loop_for_distance;
             }
 
             PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
         }
     }
-loop2_end:
+end_of_loop_for_distance:
     ;
 
     // 置けなかったんだ ----> パスする
@@ -609,65 +592,11 @@ loop2_end:
         return 0;
     }
 
-    return ret_z;
-
-    //// パスするぐらいだったら、山下さんのサンプルの思考ルーチンを呼ぶ
-    //if (ret_z == 0) {
-    //    if (dll_black_turn) col = BLACK;
-    //    else                col = WHITE;
-    //    ret_z = think_sample(col);
-    //    PRT(L"（x:%2d y:%2d）　パスするぐらいだったら、山下さんのサンプルの思考ルーチンを呼ぶ\n", get_x(ret_z), get_y(ret_z));
-    //}
-
-    //PRT(L"思考時間：先手=%d秒、後手=%d秒\n", sg_time[0], sg_time[1]);
-    //PRT(L"着手=(%2d,%2d)(%04x), 手数=%d,手番=%d,盤size=%d,komi=%.1f\n", (ret_z & 0xff), (ret_z >> 8), ret_z, dll_tesuu, dll_black_turn, dll_board_size, dll_komi);
-    ////	print_board();
-    //return ret_z;
-}
-
-
-// 乱数に近い評価関数。少し石を取りに行くように。
-int think_sample(int col)
-{
-    int max, ret_z;
-    int x, y, z, i, value, capture, z1, flag, safe, k;
-    int un_col = UNCOL(col);
-
-    // 実行するたびに違う値が得られるように現在の時刻で乱数を初期化
-    srand((unsigned)clock());
-
-    max = -1;
-    ret_z = 0;
-    for (y = 0; y < board_size; y++) for (x = 0; x < board_size; x++) {
-        z = get_z(x, y);
-        if (board[z]) continue;
-        if (z == kou_z) continue;	// コウ
-
-        value = rand() % 100;
-        capture = safe = 0;
-        for (i = 0; i < 4; i++) {
-            z1 = z + dir4[i];
-            k = board[z1];
-            if (k == WAKU) safe++;
-            if (k == 0 || k == WAKU) continue;
-            count_dame(z1);
-            if (k == un_col && dame == 1) capture = 1;	// 敵石が取れる
-            if (k == col && dame >= 2) safe++;			// 安全な味方に繋がる
-            value += (k == un_col) * ishi * (10 / (dame + 1));
-        }
-        if (safe == 4) continue;	// 眼には打たない。
-        if (capture == 0) {		// 石が取れない場合は実際に置いてみて自殺手かどうか判定
-            int kz = kou_z;			// コウの位置を退避
-            flag = move_one(z, col);
-            board[z] = 0;
-            kou_z = kz;
-            if (flag == MOVE_SUICIDE) continue;	// 自殺手
-        }
-        //		PRT(L"x,y=(%d,%d)=%d\n",x,y,value);
-        if (value > max) { max = value; ret_z = z; }
-    }
+    PRT(L"着手=(%2d,%2d)(%04x), 手数=%d,手番=%d,盤size=%d,komi=%.1f\n", (ret_z & 0xff), (ret_z >> 8), ret_z, dll_tesuu, dll_black_turn, dll_board_size, dll_komi);
+    //	print_board();
     return ret_z;
 }
+
 
 // 現在の盤面を表示
 void print_board(void)
@@ -681,6 +610,7 @@ void print_board(void)
         if (x == board_size + 1) PRT(L"\n");
     }
 }
+
 
 // 終局処理（サンプルでは簡単な判断で死石と地の判定をしています）
 int endgame_status(int endgame_board[])
@@ -712,6 +642,7 @@ int endgame_status(int endgame_board[])
     return 0;
 }
 
+
 // 図形を描く
 int endgame_draw_figure(int endgame_board[])
 {
@@ -730,6 +661,7 @@ int endgame_draw_figure(int endgame_board[])
     }
     return 0;
 }
+
 
 // 数値を書く(0は表示されない)
 int endgame_draw_number(int endgame_board[])
@@ -752,6 +684,7 @@ int get_z(int x, int y)
     return (y + 1) * 256 + (x + 1);
 }
 
+
 // 位置 tz におけるダメの数と石の数を計算。結果はグローバル変数に。
 void count_dame(int tz)
 {
@@ -761,6 +694,7 @@ void count_dame(int tz)
     for (i = 0; i < BOARD_MAX; i++) check_board[i] = 0;
     count_dame_sub(tz, board[tz]);
 }
+
 
 // ダメと石の数える再帰関数
 // 4方向を調べて、空白だったら+1、自分の石なら再帰で。相手の石、壁ならそのまま。
@@ -781,6 +715,7 @@ void count_dame_sub(int tz, int col)
     }
 }
 
+
 // 石を消す
 void del_stone(int tz, int col)
 {
@@ -792,6 +727,7 @@ void del_stone(int tz, int col)
         if (board[z] == col) del_stone(z, col);
     }
 }
+
 
 // 手を進める。
 // z ... 座標、
