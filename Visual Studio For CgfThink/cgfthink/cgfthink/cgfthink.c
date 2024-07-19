@@ -455,7 +455,7 @@ int maybe_it_is_ko(
         int kifu_y = get_y(kifu_z);
         int kifu_x = get_x(kifu_z);
 
-        PRT(L"i:%4d  ret(x, y):(%2d, %2d)  kifu(x, y):(%2d, %2d)  is_ko:%1d\n", i, ret_x, ret_y, kifu_x, kifu_y, is_ko);
+        PRT(L"dll_tesuu:%4d  i:%4d  ret_masu:(%2d, %2d)  kifu_masu:(%2d, %2d)  is_ko:%1d\n", dll_tesuu, i, ret_x + 1, ret_y + 1, kifu_x + 1, kifu_y + 1, is_ko);
     }
 
     // ２手前、つまり自分の１つ前と同じ交点に着手しようとしたら、（コウでないケースもあるが）コウとする
@@ -465,10 +465,10 @@ int maybe_it_is_ko(
     int kifu_x = get_x(kifu_z);
 
     if (is_ko) {
-        PRT(L"[%4d手目]  ret_z:%04x  kifu_z:%04x  kifu(x, y):(%2d, %2d)  コウだ\n", dll_tesuu + 1, ret_z & 0xff, kifu_z & 0xff, kifu_x, kifu_y);
+        PRT(L"[%4d手目]  ret_z:%04x  kifu_z:%04x  kifu_masu:(%2d, %2d)  コウだ\n", dll_tesuu + 1, ret_z & 0xff, kifu_z & 0xff, kifu_x + 1, kifu_y + 1);
     }
     else {
-        PRT(L"[%4d手目]  ret_z:%04x  kifu_z:%04x  kifu(x, y):(%2d, %2d)  コウではない\n", dll_tesuu + 1, ret_z & 0xff, kifu_z & 0xff, kifu_x, kifu_y);
+        PRT(L"[%4d手目]  ret_z:%04x  kifu_z:%04x  kifu_masu:(%2d, %2d)  コウではない\n", dll_tesuu + 1, ret_z & 0xff, kifu_z & 0xff, kifu_x + 1, kifu_y + 1);
     }
 
     return is_ko;
@@ -625,7 +625,7 @@ DLL_EXPORT int cgfgui_thinking(
         int next_x = 9;
         int next_y = 9;
         ret_z = get_z(next_x, next_y);
-        PRT(L"[%4d手目]  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  天元に打つ\n", dll_tesuu + 1, next_x, next_y, ret_z, ret_z & 0xff);
+        PRT(L"[%4d手目]  next_masu:(%2d, %2d)  ret_z:[%4d %04x]  天元に打つ\n", dll_tesuu + 1, next_x + 1, next_y + 1, ret_z, ret_z & 0xff);
         return ret_z;
     }
 
@@ -643,7 +643,7 @@ DLL_EXPORT int cgfgui_thinking(
 
     int last_x = get_x(last_z);
     int last_y = get_y(last_z);
-    PRT(L"[%4d手目]  last(x, y):(%2d, %2d)  last_z:%04x\n", dll_tesuu + 1, last_x, last_y, last_z & 0xff);
+    PRT(L"[%4d手目]  last_masu:(%2d, %2d)  last_z:%04x\n", dll_tesuu + 1, last_x + 1, last_y + 1, last_z & 0xff);
 
     // 距離
     float distance_f = 0.0f;
@@ -702,7 +702,7 @@ DLL_EXPORT int cgfgui_thinking(
             my_last_z = dll_kifu[dll_tesuu - 2][0];
             my_last_x = get_x(my_last_z);
             my_last_y = get_y(my_last_z);
-            PRT(L"[%4d手目]  my_last(x, y):(%2d, %2d)  my_last_z:%04x\n", dll_tesuu + 1, my_last_x, my_last_y, my_last_z & 0xff);
+            PRT(L"[%4d手目]  my_last_masu:(%2d, %2d)  my_last_z:%04x\n", dll_tesuu + 1, my_last_x + 1, my_last_y + 1, my_last_z & 0xff);
         }
 
         // 相手の着手と、２手前の自分の着手の距離を測る
