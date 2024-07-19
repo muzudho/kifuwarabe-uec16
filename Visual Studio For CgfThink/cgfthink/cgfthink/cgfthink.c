@@ -215,20 +215,28 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
     int g_angle_cursor = 0;
 
     // 360°を８分割してセット
+    //
+    // 順序を星の書き順になるように工夫
+    // 
+    //  (7) 225°  (2) 270°  (5) 315°
+    //  (4) 180°             (0)   0°
+    //  (1) 135°  (6)  90°  (3)  45°
+    //
     for (int i = 0; i < 45; i++) {
         g_angle_degrees_360[i * 8 + 0] = i + 0;
-        g_angle_degrees_360[i * 8 + 1] = i + 45;
-        g_angle_degrees_360[i * 8 + 2] = i + 90;
-        g_angle_degrees_360[i * 8 + 3] = i + 135;
+        g_angle_degrees_360[i * 8 + 1] = i + 135;
+        g_angle_degrees_360[i * 8 + 2] = i + 270;
+        g_angle_degrees_360[i * 8 + 3] = i + 45;
         g_angle_degrees_360[i * 8 + 4] = i + 180;
-        g_angle_degrees_360[i * 8 + 5] = i + 225;
-        g_angle_degrees_360[i * 8 + 6] = i + 270;
-        g_angle_degrees_360[i * 8 + 7] = i + 315;
+        g_angle_degrees_360[i * 8 + 5] = i + 315;
+        g_angle_degrees_360[i * 8 + 6] = i + 90;
+        g_angle_degrees_360[i * 8 + 7] = i + 225;
     }
 
-    for (int i = 0; i < G_ANGLE_DEGREES_360_SIZE; i++) {
-        PRT(L"[angle]  i:%3d  angle:%3d", i, g_angle_degrees_360[i]);
-    }
+    //// デバッグ表示
+    //for (int i = 0; i < G_ANGLE_DEGREES_360_SIZE; i++) {
+    //    PRT(L"[angle]  i:%3d  angle:%3d\n", i, g_angle_degrees_360[i]);
+    //}
 
     // ##########
     // # 距離
