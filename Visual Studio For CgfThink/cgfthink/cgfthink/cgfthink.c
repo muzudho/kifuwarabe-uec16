@@ -444,6 +444,10 @@ int next_angle_degrees() {
 
 
 // 相手の石を取り上げられる空点があるなら、それを返す。無ければ -1
+//
+// ただし、石１個を取り上げるのを優先すると、３コウになりやすいので、
+// 取り上げる石の最低数を指定できるようにする
+//
 int find_atari_z(
     int dll_kifu[][3],		// 棋譜
                             // [n][]...手数
@@ -451,8 +455,10 @@ int find_atari_z(
                             // [][1]...石の色
                             // [][2]...消費時間（秒)
     int dll_tesuu,			// 手数
-    int my_color            // 自分の石の色
-) {
+    int my_color,           // 自分の石の色
+    int min_agehama         // 取り上げる石の最低数
+)
+{
     int old_liberty = g_liberty;
     int old_ishi = g_ishi;
 
@@ -470,7 +476,7 @@ int find_atari_z(
                 count_liberty(z);
 
                 // アタリだ
-                if (g_liberty == 1 && max_atari_ishi < g_ishi) {
+                if (g_liberty == 1 && max_atari_ishi < g_ishi && min_agehama <= g_ishi) {
 
                     // アテがコウになるなら無視
                     if (is_ko(g_last_liberty_z)) {
@@ -575,7 +581,12 @@ DLL_EXPORT int cgfgui_thinking(
     // ##########
     // # 石を取り上げられる呼吸点があるなら、優先して置く
     // ##########
-    int atari_z = find_atari_z(dll_kifu, dll_tesuu, my_color);
+    int atari_z = find_atari_z(
+        dll_kifu,
+        dll_tesuu,
+        my_color,
+        1);     // 最低でも取り上げる石の数。1 より大きい数字
+
     if (atari_z != -1) {
         int atari_x = get_x(atari_z);
         int atari_y = get_y(atari_z);
