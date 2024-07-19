@@ -344,6 +344,33 @@ int reflection_y_on_the_wall(
 }
 
 
+// コウ判定 ----> 簡易の物
+//
+// Returns
+// -------
+// is_ko
+//      0: False
+//      1: True
+int is_ko(
+    int dll_kifu[][3],		// 棋譜
+                            // [n][]...手数
+                            // [][0]...座標
+                            // [][1]...石の色
+                            // [][2]...消費時間（秒)
+    int dll_tesuu,			// 手数
+    int ret_z               // 着手予定座標
+)
+{
+    // １～２手目にコウになることはない
+    if (dll_tesuu < 2) {
+        return 0;
+    }
+
+    // ２手前、つまり自分の１つ前と同じ交点に着手しようとしたら、コウ
+    return dll_kifu[dll_tesuu - 2][0] == ret_z;
+}
+
+
 // ########
 // # 主要 #
 // ########
@@ -355,6 +382,7 @@ int reflection_y_on_the_wall(
 DLL_EXPORT int cgfgui_thinking(
     int dll_init_board[],	// 初期盤面
     int dll_kifu[][3],		// 棋譜
+                            // [n][]...手数
                             // [][0]...座標
                             // [][1]...石の色
                             // [][2]...消費時間（秒)
@@ -489,6 +517,12 @@ DLL_EXPORT int cgfgui_thinking(
                         continue;
                     }
 
+                    // コウならやり直し
+                    if (is_ko(dll_kifu, dll_tesuu, ret_z)) {
+                        PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
+                        continue;
+                    }
+
                     PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  board[ret_z]:%d\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z, ret_z & 0xff, destination_color);
                     goto loop1_end;
                 }
@@ -551,6 +585,12 @@ DLL_EXPORT int cgfgui_thinking(
                 count_dame(ret_z);
                 if (dame == 0) {
                     PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+                    continue;
+                }
+
+                // コウならやり直し
+                if (is_ko(dll_kifu, dll_tesuu, ret_z)) {
+                    PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
                     continue;
                 }
 
