@@ -107,7 +107,7 @@ int board_size;	// 盤面のサイズ。19路盤では19、9路盤では9
 // 左右、上下に移動する場合の動く量
 int dir4[4] = { +0x001,-0x001,+0x100,-0x100 };
 
-int ishi = 0;	    // 取った石の数(再帰関数で使う)
+int g_ishi = 0;	    // 取った石の数(再帰関数で使う)
 int g_liberty = 0;	// 連の呼吸点の数(再帰関数で使う)
 int kou_z = 0;	// 次にコウになる位置
 int hama[2];	// [0]... 黒が取った石の数, [1]...白が取った石の数
@@ -740,7 +740,7 @@ int endgame_status(int endgame_board[])
         else {
             *p = GTP_ALIVE;
             count_liberty(z);
-            //			PRT(L"(%2d,%2d),ishi=%2d,liberty=%2d\n",z&0xff,z>>8,ishi,g_liberty);
+            //			PRT(L"(%2d,%2d),ishi=%2d,liberty=%2d\n",z&0xff,z>>8, g_ishi, g_liberty);
             if (g_liberty <= 1) *p = GTP_DEAD;
         }
     }
@@ -795,8 +795,12 @@ void count_liberty(int tz)
 {
     int i;
 
-    g_liberty = ishi = 0;
-    for (i = 0; i < BOARD_MAX; i++) check_board[i] = 0;
+    g_liberty = g_ishi = 0;
+
+    for (i = 0; i < BOARD_MAX; i++) {
+        check_board[i] = 0;
+    }
+
     count_liberty_sub(tz, board[tz]);
 }
 
@@ -807,8 +811,8 @@ void count_liberty_sub(int tz, int col)
 {
     int z, i;
 
-    check_board[tz] = 1;			// この石は検索済み	
-    ishi++;							// 石の数
+    check_board[tz] = 1;			    // この石は検索済み	
+    g_ishi++;							// 石の数
     for (i = 0; i < 4; i++) {
         z = tz + dir4[i];
         if (check_board[z]) continue;
@@ -863,8 +867,8 @@ int move_one(int z, int col)
         // 敵の石が取れるか？
         count_liberty(z1);
         if (g_liberty == 0) {
-            hama[col - 1] += ishi;
-            all_ishi += ishi;
+            hama[col - 1] += g_ishi;
+            all_ishi += g_ishi;
             del_z = z1;	// 取られた石の座標。コウの判定で使う。
             del_stone(z1, un_col);
         }
@@ -887,7 +891,7 @@ int move_one(int z, int col)
             z1 = del_z + dir4[i];
             if (board[z1] != col) continue;
             count_liberty(z1);
-            if (g_liberty == 1 && ishi == 1) sum++;
+            if (g_liberty == 1 && g_ishi == 1) sum++;
         }
         if (sum >= 2) {
             PRT(L"１つ取られて、コウの位置へ打つと、１つの石を2つ以上取れる？z=%04x\n", z);
