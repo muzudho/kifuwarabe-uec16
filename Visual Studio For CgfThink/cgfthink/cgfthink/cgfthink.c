@@ -191,7 +191,7 @@ void PRT(const wchar_t* fmt, ...)
 // # 主要 #
 // ########
 // 
-// 対局開始時に一度だけ呼ばれます。
+// GUI からエンジンが読み込まれたときに一度だけ呼ばれます。対局開始時ではありません
 //
 DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
 {
@@ -212,9 +212,6 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
     // ##########
     // # 角度
     // ##########
-
-    // 初期化
-    g_angle_cursor = 0;
 
     // 360°を８分割してセット
     //
@@ -563,6 +560,17 @@ DLL_EXPORT int cgfgui_thinking(
     // 以下、プレイ
 
     PRT(L"[%4d手目]  思考時間：先手=%d秒、後手=%d秒\n", dll_tesuu + 1, sg_time[0], sg_time[1]);
+
+    // ##########
+    // # １手目、または０手目
+    // ##########
+    //
+    //      つまり自分（コンピュータ）が初手を打つケース。対局開始時の初期化をするのに使う
+    //
+    if (dll_tesuu < 2) {
+        // 初期化
+        g_angle_cursor = 0;
+    }
 
     // ##########
     // # 石を取り上げられる呼吸点があるなら、優先して置く
