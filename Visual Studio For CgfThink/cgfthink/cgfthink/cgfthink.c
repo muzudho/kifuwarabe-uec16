@@ -202,22 +202,38 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
     // # 角度
     // ##########
 
-    for (int i = 0; i < 360; i++) {
-        g_angle_degrees_360[i] = i;
-    }
+    // 初期化
+    int g_angle_cursor = 0;
 
-    // 2πe を掛ければ、だいたい混ざる
-    int size = 360;
-    int shuffle_number = size * 2 * 3.14159 * 2.71828;
-    for (int k = 0; k < shuffle_number; k++) {
-        for (int i = 0; i < size; i++) {
-            int j = rand() % size;
+    //for (int i = 0; i < 360; i++) {
+    //    g_angle_degrees_360[i] = i;
+    //}
 
-            // swap
-            int temp = g_angle_degrees_360[j];
-            g_angle_degrees_360[j] = g_angle_degrees_360[i];
-            g_angle_degrees_360[i] = temp;
-        }
+    //// できれば乱数を使いたくない
+    //// 2πe を掛ければ、だいたい混ざる
+    //int size = 360;
+    //int shuffle_number = size * 2 * 3.14159 * 2.71828;
+    //for (int k = 0; k < shuffle_number; k++) {
+    //    for (int i = 0; i < size; i++) {
+    //        int j = rand() % size;
+    //
+    //        // swap
+    //        int temp = g_angle_degrees_360[j];
+    //        g_angle_degrees_360[j] = g_angle_degrees_360[i];
+    //        g_angle_degrees_360[i] = temp;
+    //    }
+    //}
+
+    // 360°を８分割してセット
+    for (int i = 0; i < 45; i++) {
+        g_angle_degrees_360[i + 0] = i + 0;
+        g_angle_degrees_360[i + 1] = i + 45;
+        g_angle_degrees_360[i + 2] = i + 90;
+        g_angle_degrees_360[i + 3] = i + 135;
+        g_angle_degrees_360[i + 4] = i + 180;
+        g_angle_degrees_360[i + 5] = i + 225;
+        g_angle_degrees_360[i + 6] = i + 270;
+        g_angle_degrees_360[i + 7] = i + 315;
     }
 
     // ##########
