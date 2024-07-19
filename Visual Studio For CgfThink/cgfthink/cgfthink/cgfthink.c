@@ -214,7 +214,7 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
     // ##########
 
     // 初期化
-    int g_angle_cursor = 0;
+    g_angle_cursor = 0;
 
     // 360°を８分割してセット
     //
@@ -418,60 +418,23 @@ int reflection_y_on_the_wall(
 }
 
 
-// コウ判定 ----> 簡易の物
-// 
-// FIXME コウでないケースも、コウと判断することがある。
-// 大石を取られた２手後に、大石の一部に打ち込む手とか。
-// 正確にやるなら、元々書いてあった山下さんのソースを取り入れること
+// コウ判定
 //
 // Returns
 // -------
 // is_ko
 //      0: False
 //      1: True
-int maybe_it_is_ko(
-    int dll_kifu[][3],		// 棋譜
-                            // [n][]...手数
-                            // [][0]...座標
-                            // [][1]...石の色
-                            // [][2]...消費時間（秒)
-    int dll_tesuu,			// 手数
+int is_ko(
     int ret_z               // 着手予定座標
 )
 {
-    // １～２手目にコウになることはない
-    if (dll_tesuu < 2) {
-        PRT(L"[%4d手目]  １～２手目にコウになることはない\n", dll_tesuu + 1);
+    // コウは無い
+    if (g_kou_z == 0) {
         return 0;
     }
 
-    // デバッグ表示
-    for (int i = 2; i <= dll_tesuu; i++) {
-        int ret_y = get_y(ret_z);
-        int ret_x = get_x(ret_z);
-
-        int kifu_z = dll_kifu[i - 2][0];
-        int is_ko = kifu_z == ret_z;
-        int kifu_y = get_y(kifu_z);
-        int kifu_x = get_x(kifu_z);
-
-        PRT(L"dll_tesuu:%4d  i:%4d  ret_masu:(%2d, %2d)  kifu_masu:(%2d, %2d)  is_ko:%1d\n", dll_tesuu, i, ret_x + 1, ret_y + 1, kifu_x + 1, kifu_y + 1, is_ko);
-    }
-
-    // ２手前、つまり自分の１つ前と同じ交点に着手しようとしたら、（コウでないケースもあるが）コウとする
-    int kifu_z = dll_kifu[dll_tesuu - 2][0];
-    int is_ko = kifu_z == ret_z;
-    int kifu_y = get_y(kifu_z);
-    int kifu_x = get_x(kifu_z);
-
-    if (is_ko) {
-        PRT(L"[%4d手目]  ret_z:%04x  kifu_z:%04x  kifu_masu:(%2d, %2d)  コウだ\n", dll_tesuu + 1, ret_z & 0xff, kifu_z & 0xff, kifu_x + 1, kifu_y + 1);
-    }
-    else {
-        PRT(L"[%4d手目]  ret_z:%04x  kifu_z:%04x  kifu_masu:(%2d, %2d)  コウではない\n", dll_tesuu + 1, ret_z & 0xff, kifu_z & 0xff, kifu_x + 1, kifu_y + 1);
-    }
-
-    return is_ko;
+    return g_kou_z == ret_z;
 }
 
 
@@ -513,7 +476,7 @@ int find_atari_z(
                 if (g_liberty == 1 && max_atari_ishi < g_ishi) {
 
                     // アテがコウになるなら無視
-                    if (maybe_it_is_ko(dll_kifu, dll_tesuu, g_last_liberty_z)) {
+                    if (is_ko(g_last_liberty_z)) {
                         continue;
                     }
 
@@ -763,8 +726,8 @@ DLL_EXPORT int cgfgui_thinking(
                     continue;
                 }
 
-                // 多分、コウならやり直し
-                if (maybe_it_is_ko(dll_kifu, dll_tesuu, ret_z)) {
+                // コウならやり直し
+                if (is_ko(dll_kifu, dll_tesuu, ret_z)) {
                     PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                     PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                     PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
