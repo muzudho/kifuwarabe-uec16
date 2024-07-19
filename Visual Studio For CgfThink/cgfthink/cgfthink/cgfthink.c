@@ -482,68 +482,67 @@ DLL_EXPORT int cgfgui_thinking(
     int distance_offset = 0;
 
     // ##########
-    // # ２手目
+    // # ２手目、かつ相手が初手に天元を打ったケース
     // ##########
     //
-    //      つまり自分（コンピュータ）が２手目を打つケース
+    //      距離は 19/4、角度 ０°とする。
     //
-    if (dll_tesuu == 1) {
-        // ２手前の自分の手はない。
-        
-        // １手前の相手が天元に打った場合は、距離９、角度４５°とする。
-        if (last_z == get_z(9, 9)) {
-            // 距離を１９路盤の辺の４分の１とする
-            distance = (int)(19.0f / 4.0f);
+    if (dll_tesuu == 1 && last_z == get_z(9, 9)) {
+        // 距離を１９路盤の辺の４分の１とする
+        distance = (int)(19.0f / 4.0f);
 
-            // 角度は適当に 45°とする
-            //degrees = 45;
-            degrees = 0;
-            PRT(L"[%4d手目]  distance:%2d  degrees:%3d  相手は初手を天元に打った\n", dll_tesuu + 1, distance, degrees);
-        }
-        // ２手前の自分は天元に打ったものと想定して、仮の値を入れる。
-        else {
+        // 角度
+        degrees = 0;
+        PRT(L"[%4d手目]  distance:%2d  degrees:%3d  相手は初手を天元に打った\n", dll_tesuu + 1, distance, degrees);
+    }
+    else {
+        int diff_x;
+        int diff_y;
+
+        // ##########
+        // # ２手目
+        // ##########
+        //
+        //      つまり自分（コンピュータ）が２手目を打つケース
+        //
+        if (dll_tesuu == 1) {
+            // ２手前の自分の手はない。
+
+            // ２手前の自分は天元に打ったものと想定して、仮の値を入れる。
             // 相手の着手と、天元の距離を測る
 
-            int diff_x = last_x - 9;
-            int diff_y = last_y = 9;
-
-            // ２点の石の距離 ----> 直角三角形の斜辺の長さ
-            // それだと距離が遠すぎるので、さらに半分にする
-            distance = (int)(hypot(diff_x, diff_y) / 2.0f);
-
-            // ２点から角度を求め、適当に 45°ずらす
-            float radians = atan((float)diff_y / (float)diff_x);
-            degrees = (radians_to_degrees(radians) + 45) % 360;
-            PRT(L"[%4d手目]  distance:%2d  degrees:%3d  相手は初手を天元以外に打った\n", dll_tesuu + 1, distance, degrees);
+            diff_x = last_x - 9;
+            diff_y = last_y = 9;
+            PRT(L"[%4d手目]  相手は初手を天元以外に打った\n", dll_tesuu + 1);
         }
-    }
-    // ##########
-    // # 以下、３手目以降
-    // ##########
-    //
-    //      つまり、２手前の手が存在するケース
-    // 
-    else {
+        // ##########
+        // # 以下、３手目以降
+        // ##########
+        //
+        //      つまり、２手前の手が存在するケース
+        // 
+        else {
 
-        // ２手前の自分の手
-        int my_last_z = dll_kifu[dll_tesuu - 2][0];
-        int my_last_x = get_x(my_last_z);
-        int my_last_y = get_y(my_last_z);
-        PRT(L"[%4d手目]  my_last(x, y):(%2d, %2d)  my_last_z:%04x\n", dll_tesuu + 1, my_last_x, my_last_y, my_last_z & 0xff);
+            // ２手前の自分の手
+            int my_last_z = dll_kifu[dll_tesuu - 2][0];
+            int my_last_x = get_x(my_last_z);
+            int my_last_y = get_y(my_last_z);
+            PRT(L"[%4d手目]  my_last(x, y):(%2d, %2d)  my_last_z:%04x\n", dll_tesuu + 1, my_last_x, my_last_y, my_last_z & 0xff);
 
-        // 相手の着手と、２手前の自分の着手の距離を測る
-        int diff_x = last_x - my_last_x;
-        int diff_y = last_y - my_last_y;
+            // 相手の着手と、２手前の自分の着手の距離を測る
+            diff_x = last_x - my_last_x;
+            diff_y = last_y - my_last_y;
+        }
 
         // ２点の石の距離 ----> 直角三角形の斜辺の長さ
         // それだと距離が遠すぎるので、さらに半分にする
         distance = (int)(hypot(diff_x, diff_y) / 2.0f);
 
-        // ２点から角度を求め、適当に 45°ずらす
+        // ２点から角度を求める
         float radians = atan((float)diff_y / (float)diff_x);
-        //degrees = (radians_to_degrees(radians) + 45) % 360;
-        degrees = (radians_to_degrees(radians) + 0) % 360;
+        degrees = radians_to_degrees(radians) % 360;
     }
+
 
     // 石を置けなかったら、角度を変えて置く。それでも置けなかったら、距離を変えて置く
     for (; distance_offset < 20; distance_offset++) {
