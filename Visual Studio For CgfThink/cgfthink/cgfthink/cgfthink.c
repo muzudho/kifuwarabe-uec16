@@ -102,8 +102,8 @@ int board_size;	// 盤面のサイズ。19路盤では19、9路盤では9
 // 左右、上下に移動する場合の動く量
 int dir4[4] = { +0x001,-0x001,+0x100,-0x100 };
 
-int ishi = 0;	// 取った石の数(再帰関数で使う)
-int dame = 0;	// 連のダメの数(再帰関数で使う)
+int ishi = 0;	    // 取った石の数(再帰関数で使う)
+int g_liberty = 0;	// 連の呼吸点の数(再帰関数で使う)
 int kou_z = 0;	// 次にコウになる位置
 int hama[2];	// [0]... 黒が取った石の数, [1]...白が取った石の数
 int sg_time[2];	// 累計思考時間
@@ -129,8 +129,8 @@ enum MoveResult {
 
 
 // 関数のプロトタイプ宣言
-void count_dame(int tz);				// ダメと石の数を調べる
-void count_dame_sub(int tz, int col);	// ダメと石の数を調べる再帰関数
+void count_liberty(int tz);				    // 呼吸点と石の数を調べる
+void count_liberty_sub(int tz, int col);	// 呼吸点と石の数を調べる再帰関数
 int move_one(int z, int col);			// 1手進める。z ... 座標、col ... 石の色
 void print_board(void);					// 現在の盤面を表示
 int get_z(int x, int y);					// (x,y)を1つの座標に変換
@@ -285,9 +285,9 @@ int can_put(int ret_z) {
     }
 
     // 石の上に置くわけでなければＯＫ。ただし...
-    count_dame(ret_z);
+    count_liberty(ret_z);
 
-    if (dame == 0) {
+    if (g_liberty == 0) {
         // 呼吸できないところには置けない
         PRT(L"（x:%2d y:%2d）　呼吸できないところには置けない\n", get_x(ret_z), get_y(ret_z));
         return 0;
@@ -633,8 +633,8 @@ DLL_EXPORT int cgfgui_thinking(
             if (destination_color == 0) {
 
                 // 自殺手ならやり直し
-                count_dame(ret_z);
-                if (dame == 0) {
+                count_liberty(ret_z);
+                if (g_liberty == 0) {
                     PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                     PRT(L"            next_distance:%2d  =  (  distance:%2d  +  offset_distance:%2d)\n", next_distance, distance, offset_distance);
                     PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
@@ -719,9 +719,9 @@ int endgame_status(int endgame_board[])
         }
         else {
             *p = GTP_ALIVE;
-            count_dame(z);
-            //			PRT(L"(%2d,%2d),ishi=%2d,dame=%2d\n",z&0xff,z>>8,ishi,dame);
-            if (dame <= 1) *p = GTP_DEAD;
+            count_liberty(z);
+            //			PRT(L"(%2d,%2d),ishi=%2d,liberty=%2d\n",z&0xff,z>>8,ishi,g_liberty);
+            if (g_liberty <= 1) *p = GTP_DEAD;
         }
     }
     return 0;
@@ -770,20 +770,20 @@ int get_z(int x, int y)
 }
 
 
-// 位置 tz におけるダメの数と石の数を計算。結果はグローバル変数に。
-void count_dame(int tz)
+// 位置 tz における呼吸点の数と石の数を計算。結果はグローバル変数に。
+void count_liberty(int tz)
 {
     int i;
 
-    dame = ishi = 0;
+    g_liberty = ishi = 0;
     for (i = 0; i < BOARD_MAX; i++) check_board[i] = 0;
-    count_dame_sub(tz, board[tz]);
+    count_liberty_sub(tz, board[tz]);
 }
 
 
-// ダメと石の数える再帰関数
+// 呼吸点と石の数える再帰関数
 // 4方向を調べて、空白だったら+1、自分の石なら再帰で。相手の石、壁ならそのまま。
-void count_dame_sub(int tz, int col)
+void count_liberty_sub(int tz, int col)
 {
     int z, i;
 
@@ -793,10 +793,10 @@ void count_dame_sub(int tz, int col)
         z = tz + dir4[i];
         if (check_board[z]) continue;
         if (board[z] == 0) {
-            check_board[z] = 1;	// この空点は検索済み
-            dame++;				// ダメの数
+            check_board[z] = 1;	        // この空点は検索済み
+            g_liberty++;				// 呼吸点の数
         }
-        if (board[z] == col) count_dame_sub(z, col);	// 未探索の自分の石
+        if (board[z] == col) count_liberty_sub(z, col);	// 未探索の自分の石
     }
 }
 
@@ -841,8 +841,8 @@ int move_one(int z, int col)
         z1 = z + dir4[i];
         if (board[z1] != un_col) continue;
         // 敵の石が取れるか？
-        count_dame(z1);
-        if (dame == 0) {
+        count_liberty(z1);
+        if (g_liberty == 0) {
             hama[col - 1] += ishi;
             all_ishi += ishi;
             del_z = z1;	// 取られた石の座標。コウの判定で使う。
@@ -850,8 +850,8 @@ int move_one(int z, int col)
         }
     }
     // 自殺手を判定
-    count_dame(z);
-    if (dame == 0) {
+    count_liberty(z);
+    if (g_liberty == 0) {
         PRT(L"move() Err: 自殺手! z=%04x\n", z);
         board[z] = 0;
         return MOVE_SUICIDE;
@@ -866,8 +866,8 @@ int move_one(int z, int col)
         for (i = 0; i < 4; i++) {
             z1 = del_z + dir4[i];
             if (board[z1] != col) continue;
-            count_dame(z1);
-            if (dame == 1 && ishi == 1) sum++;
+            count_liberty(z1);
+            if (g_liberty == 1 && ishi == 1) sum++;
         }
         if (sum >= 2) {
             PRT(L"１つ取られて、コウの位置へ打つと、１つの石を2つ以上取れる？z=%04x\n", z);
