@@ -138,11 +138,11 @@ int offset_distance_55[G_OFFSET_DISTANCE_55_SIZE];
 
 
 // 関数のプロトタイプ宣言
-void count_liberty(int tz);				    // 呼吸点と石の数を調べる
-void count_liberty_sub(int tz, int col);	// 呼吸点と石の数を調べる再帰関数
-int move_one(int z, int col);			// 1手進める。z ... 座標、col ... 石の色
-void print_board(void);					// 現在の盤面を表示
-int get_z(int x, int y);					// (x,y)を1つの座標に変換
+void count_liberty(int tz);				        // 呼吸点と石の数を調べる
+void count_liberty_sub(int tz, int my_color);	// 呼吸点と石の数を調べる再帰関数
+int move_one(int z, int color);			        // 1手進める。z ... 座標、color ... 石の色
+void print_board(void);					        // 現在の盤面を表示
+int get_z(int x, int y);					    // (x,y)を1つの座標に変換
 int endgame_status(int endgame_board[]);		// 終局処理
 int endgame_draw_figure(int endgame_board[]);	// 図形を描く
 int endgame_draw_number(int endgame_board[]);	// 数値を書く(0は表示されない)
@@ -361,19 +361,20 @@ void setupCurrentPosition(
 // 棋譜の読取
 void readKifu(
     int dll_kifu[][3],		// 棋譜
-    // [][0]...座標
-    // [][1]...石の色
-    // [][2]...消費時間（秒)
+                            // [][0]...座標
+                            // [][1]...石の色
+                            // [][2]...消費時間（秒)
     int dll_tesuu 			// 手数
 )
 {
     // 棋譜の読取
     for (int i = 0; i < dll_tesuu; i++) {
-        int z = dll_kifu[i][0];	    // 座標、y*256 + x の形で入っている
-        int col = dll_kifu[i][1];	// 石の色
-        int t = dll_kifu[i][2];	    // 消費時間
+        int z = dll_kifu[i][0];	        // 座標、y*256 + x の形で入っている
+        int color = dll_kifu[i][1];	    // 石の色
+        int t = dll_kifu[i][2];	        // 消費時間
         sg_time[i & 1] += t;
-        if (move_one(z, col) != MOVE_SUCCESS) break;
+
+        if (move_one(z, color) != MOVE_SUCCESS) break;
     }
 }
 
@@ -456,6 +457,43 @@ int next_angle_degrees() {
 }
 
 
+// 相手の石を取り上げられる空点があるなら、それを返す。無ければ -1
+int find_atari_z(
+    int my_color    // 自分の石の色
+) {
+    int old_liberty = g_liberty;
+    int old_ishi = g_ishi;
+
+    int max_atari_ishi = 0;
+    int atari_z = -1;
+
+    for (int y = 0; y < 19; y++) {
+        for (int x = 0; x < 19; x++) {
+            int z = get_z(x, y);
+
+            // 相手の石
+            if (board[z] == UNCOL(my_color)) {
+
+                // 呼吸点を探索する
+                count_liberty(z);
+
+                // アタリだ
+                if (g_liberty == 1 && max_atari_ishi < g_ishi) {
+                    max_atari_ishi = g_ishi;
+                    atari_z = g_last_liberty_z;
+                }
+            }
+        }
+    }
+
+    // Restore
+    g_liberty = old_liberty;
+    g_ishi = old_ishi;
+
+    return atari_z;
+}
+
+
 // ########
 // # 主要 #
 // ########
@@ -484,7 +522,16 @@ DLL_EXPORT int cgfgui_thinking(
     int dll_endgame_board[]	// 終局処理の結果を代入する。
 )
 {
-    int z, col, t, i, ret_z;
+    int z, t, i, ret_z;
+
+    int my_color;
+
+    if (dll_black_turn == 1) {
+        my_color = 1;
+    }
+    else {
+        my_color = 2;
+    }
 
     // 石を置く先に、石が無いか、石の色を確認
     int destination_color;
@@ -519,12 +566,13 @@ DLL_EXPORT int cgfgui_thinking(
     // ##########
     // # 石を取り上げられる呼吸点があるなら、優先して置く
     // ##########
-    if (g_liberty == 1 && g_last_liberty_z != -1 && board[g_last_liberty_z] == 0) {
-        int last_liberty_x = get_x(g_last_liberty_z);
-        int last_liberty_y = get_y(g_last_liberty_z);
+    int atari_z = find_atari_z(my_color);
+    if (atari_z != -1) {
+        int atari_x = get_x(atari_z);
+        int atari_y = get_y(atari_z);
 
-        PRT(L"[%4d手目]  last_liberty_x:%2d  last_liberty_y:%2d  g_last_liberty_z:%04x  石を取り上げられる空点に打つ\n", dll_tesuu + 1, last_liberty_x, last_liberty_y, g_last_liberty_z & 0xff);
-        return g_last_liberty_z;
+        PRT(L"[%4d手目]  atari_x:%2d  atari_y:%2d  atari_z:%04x  石を取り上げられる空点に打つ\n", dll_tesuu + 1, atari_x, atari_y, atari_z & 0xff);
+        return atari_z;
     }
 
 
@@ -822,7 +870,7 @@ void count_liberty(int tz)
 
 // 呼吸点と石の数える再帰関数
 // 4方向を調べて、空白だったら+1、自分の石なら再帰で。相手の石、壁ならそのまま。
-void count_liberty_sub(int tz, int col)
+void count_liberty_sub(int tz, int my_color)
 {
     int z, i;
 
@@ -845,34 +893,34 @@ void count_liberty_sub(int tz, int col)
         }
 
         // 未探索の自分の石
-        if (board[z] == col) {
-            count_liberty_sub(z, col);
+        if (board[z] == my_color) {
+            count_liberty_sub(z, my_color);
         }
     }
 }
 
 
 // 石を消す
-void del_stone(int tz, int col)
+void del_stone(int tz, int color)
 {
     int z, i;
 
     board[tz] = 0;
     for (i = 0; i < 4; i++) {
         z = tz + dir4[i];
-        if (board[z] == col) del_stone(z, col);
+        if (board[z] == color) del_stone(z, color);
     }
 }
 
 
 // 手を進める。
 // z ... 座標、
-// col ... 石の色
-int move_one(int z, int col)
+// color ... 石の色
+int move_one(int z, int color)
 {
     int i, z1, sum, del_z = 0;
     int all_ishi = 0;	// 取った石の合計
-    int un_col = UNCOL(col);
+    int un_col = UNCOL(color);
 
     if (z == 0) {	// PASSの場合
         kou_z = 0;
@@ -886,7 +934,7 @@ int move_one(int z, int col)
         PRT(L"move() Err: 空点ではない！z=%04x\n", z);
         return MOVE_EXIST;
     }
-    board[z] = col;	// とりあえず置いてみる
+    board[z] = color;	// とりあえず置いてみる
 
     for (i = 0; i < 4; i++) {
         z1 = z + dir4[i];
@@ -894,7 +942,7 @@ int move_one(int z, int col)
         // 敵の石が取れるか？
         count_liberty(z1);
         if (g_liberty == 0) {
-            hama[col - 1] += g_ishi;
+            hama[color - 1] += g_ishi;
             all_ishi += g_ishi;
             del_z = z1;	// 取られた石の座標。コウの判定で使う。
             del_stone(z1, un_col);
@@ -916,7 +964,7 @@ int move_one(int z, int col)
         sum = 0;
         for (i = 0; i < 4; i++) {
             z1 = del_z + dir4[i];
-            if (board[z1] != col) continue;
+            if (board[z1] != color) continue;
             count_liberty(z1);
             if (g_liberty == 1 && g_ishi == 1) sum++;
         }
