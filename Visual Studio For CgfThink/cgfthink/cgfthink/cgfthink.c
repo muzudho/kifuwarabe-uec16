@@ -550,16 +550,19 @@ DLL_EXPORT int cgfgui_thinking(
 
     // 石を置けなかったら、角度を変えて置く。それでも置けなかったら、距離を変えて置く
     for (; distance_offset < 20; distance_offset++) {
-        for (int degrees_offset = 0; degrees_offset < 360; degrees_offset++) {
-            int next_degrees = starting_angle_degrees + degrees_offset;
+        for (int offset_degrees = 0; offset_degrees < 360; offset_degrees++) {
+            int next_degrees = starting_angle_degrees + offset_degrees;
             int next_distance = (distance + distance_offset) % 19;
 
-            int next_y = (int)((float)next_distance * sin(degrees_to_radians(next_degrees))) + last_y;
-            int next_x = (int)((float)next_distance * cos(degrees_to_radians(next_degrees))) + last_x;
+            int offset_y = (int)((float)next_distance * sin(degrees_to_radians(next_degrees)));
+            int offset_x = (int)((float)next_distance * cos(degrees_to_radians(next_degrees)));
+
+            int next_y_before_conditioning = offset_y + last_y;
+            int next_x_before_conditioning = offset_x + last_x;
 
             // 盤外に石を投げてしまったら、反射したい
-            next_x = reflection_x_on_the_wall(next_x);
-            next_y = reflection_y_on_the_wall(next_y);
+            int next_y = reflection_y_on_the_wall(next_y_before_conditioning);
+            int next_x = reflection_x_on_the_wall(next_x_before_conditioning);
 
             ret_z = get_z(next_x, next_y);
             destination_color = board[ret_z];
@@ -570,25 +573,33 @@ DLL_EXPORT int cgfgui_thinking(
                 // 自殺手ならやり直し
                 count_dame(ret_z);
                 if (dame == 0) {
-                    PRT(L"[%4d手目]  next_distance:%2.2f  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, next_x, next_y, ret_z & 0xff, destination_color);
-                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  degrees_offset:%3d\n", next_degrees, starting_angle_degrees, degrees_offset);
+                    PRT(L"[%4d手目]  next_distance:%2.2f  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, ret_z & 0xff, destination_color);
+                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_degrees);
+                    PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
+                    PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                     continue;
                 }
 
                 // 多分、コウならやり直し
                 if (maybe_it_is_ko(dll_kifu, dll_tesuu, ret_z)) {
-                    PRT(L"[%4d手目]  next_distance:%2.2f  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, next_x, next_y, ret_z & 0xff, destination_color);
-                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  degrees_offset:%3d\n", next_degrees, starting_angle_degrees, degrees_offset);
+                    PRT(L"[%4d手目]  next_distance:%2.2f  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, ret_z & 0xff, destination_color);
+                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_degrees);
+                    PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
+                    PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                     continue;
                 }
 
-                PRT(L"[%4d手目]  next_distance:%2.2f  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, next_distance, next_x, next_y, ret_z & 0xff, destination_color);
-                PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  degrees_offset:%3d\n", next_degrees, starting_angle_degrees, degrees_offset);
+                PRT(L"[%4d手目]  next_distance:%2.2f  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, next_distance, ret_z & 0xff, destination_color);
+                PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_degrees);
+                PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
+                PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                 goto end_of_loop_for_distance;
             }
 
-            PRT(L"[%4d手目]  next_distance:%2.2f  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, next_x, next_y, ret_z & 0xff, destination_color);
-            PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  degrees_offset:%3d\n", next_degrees, starting_angle_degrees, degrees_offset);
+            PRT(L"[%4d手目]  next_distance:%2.2f  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, ret_z & 0xff, destination_color);
+            PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_degrees);
+            PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
+            PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
         }
     }
 end_of_loop_for_distance:
