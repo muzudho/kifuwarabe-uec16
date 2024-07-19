@@ -8,11 +8,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+
+// math.h の中の M_PI を使えるようにする定義
+#define _USE_MATH_DEFINES
 #include <math.h>
 //#include <cmath> // インクルードするとコンパイラーがエラー出す？
 
 #include <windows.h>
 //#include <tuple>    // C++11 からタプルが使えるそうだ。でもこれＣ言語
+
+
 
 // インクルードでパスが見つからなかったので、 cgfthink.h の内容を、ここへ埋め込んだ
 // アプリケーションから呼ばれる関数の宣言
@@ -108,13 +113,6 @@ int kou_z = 0;	// 次にコウになる位置
 int hama[2];	// [0]... 黒が取った石の数, [1]...白が取った石の数
 int sg_time[2];	// 累計思考時間
 
-// 角度に乱数を入れていないと、同じパターンでハメれるので、乱数を入れておく
-int g_angle_degrees_360[360];
-int g_angle_cursor;
-
-// 19 に √2 を掛けるとおよそ 27。 上にも下にも -27 ～ 27 の数を、振動させながら用意する
-int offset_distance_55[55];
-
 #define UNCOL(x) (3-(x))	// 石の色を反転させる
 
 // move()関数で手を進めた時の結果
@@ -125,6 +123,15 @@ enum MoveResult {
     MOVE_EXIST,		// 既に石が存在
     MOVE_FATAL		// それ以外
 };
+
+// 角度に乱数を入れていないと、同じパターンでハメれるので、乱数を入れておく
+#define G_ANGLE_DEGREES_360_SIZE 360
+int g_angle_degrees_360[G_ANGLE_DEGREES_360_SIZE];
+int g_angle_cursor;
+
+// 19 に √2 を掛けるとおよそ 27。 上にも下にも -27 ～ 27 の数を、振動させながら用意する
+#define G_OFFSET_DISTANCE_55_SIZE 55
+int offset_distance_55[G_OFFSET_DISTANCE_55_SIZE];
 
 
 
@@ -198,31 +205,14 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
 
     // この下に、メモリの確保など必要な場合のコードを記述してください。
 
+    PRT(L"M_PI:%.10f\n", M_PI);
+
     // ##########
     // # 角度
     // ##########
 
     // 初期化
     int g_angle_cursor = 0;
-
-    //for (int i = 0; i < 360; i++) {
-    //    g_angle_degrees_360[i] = i;
-    //}
-
-    //// できれば乱数を使いたくない
-    //// 2πe を掛ければ、だいたい混ざる
-    //int size = 360;
-    //int shuffle_number = size * 2 * 3.14159 * 2.71828;
-    //for (int k = 0; k < shuffle_number; k++) {
-    //    for (int i = 0; i < size; i++) {
-    //        int j = rand() % size;
-    //
-    //        // swap
-    //        int temp = g_angle_degrees_360[j];
-    //        g_angle_degrees_360[j] = g_angle_degrees_360[i];
-    //        g_angle_degrees_360[i] = temp;
-    //    }
-    //}
 
     // 360°を８分割してセット
     for (int i = 0; i < 45; i++) {
@@ -330,12 +320,12 @@ int subtract_small_from_large(int a, int b) {
 
 
 int radians_to_degrees(float radians) {
-    return (int)(radians * (180.0f / 3.14159f));
+    return (int)(radians * (180.0f / M_PI));
 }
 
 
 float degrees_to_radians(int degrees) {
-    return (float)degrees * 3.14159f / 180.0f;
+    return (float)degrees * M_PI / 180.0f;
 }
 
 
@@ -446,8 +436,9 @@ int maybe_it_is_ko(
 
 // 角度を取得
 int next_angle_degrees() {
-    g_angle_cursor = (g_angle_cursor + 1) % 360;
-    return g_angle_degrees_360[g_angle_cursor];
+    int angle = g_angle_degrees_360[g_angle_cursor];
+    g_angle_cursor = (g_angle_cursor + 1) % G_ANGLE_DEGREES_360_SIZE;
+    return angle;
 }
 
 
@@ -543,7 +534,7 @@ DLL_EXPORT int cgfgui_thinking(
     PRT(L"[%4d手目]  last(x, y):(%2d, %2d)  last_z:%04x\n", dll_tesuu + 1, last_x, last_y, last_z & 0xff);
 
     // 距離 ----> 剰余を使いたいので、整数にします
-    float distance_f = 0;
+    float distance_f = 0.0f;
 
     // 角度（度数法）の初期値。 0 ～ 359。 石が置けなかったとき、この角度は変更されていく
     int starting_angle_degrees = 0;
@@ -552,14 +543,15 @@ DLL_EXPORT int cgfgui_thinking(
     // # ２手目、かつ相手が初手に天元を打ったケース
     // ##########
     //
-    //      距離は 6 * √2、角度 ４５°とする。
+    //      ３３の星に置きたいので、距離は 6.5 * √2、角度 ３１５°とする。
+    //      距離が 6 * √2 では足りなかった。 7 * √2 だとY方向にずれた。
     //
     if (dll_tesuu == 1 && last_z == get_z(9, 9)) {
         // 距離
-        distance_f = 6 * 1.4142;
+        distance_f = 6.5f * sqrt(2);
 
         // 角度
-        starting_angle_degrees = 45;
+        starting_angle_degrees = 315;
         PRT(L"[%4d手目]  distance_f:%2.2f  starting_angle_degrees:%3d  相手は初手を天元に打った\n", dll_tesuu + 1, distance_f, starting_angle_degrees);
     }
     else {
@@ -611,14 +603,14 @@ DLL_EXPORT int cgfgui_thinking(
 
         // ２点から角度を求める
         float radians = atan((float)diff_y / (float)diff_x);
-        starting_angle_degrees = radians_to_degrees(radians) % 360;
+        starting_angle_degrees = radians_to_degrees(radians) % G_ANGLE_DEGREES_360_SIZE;
     }
 
 
     // 石を置けなかったら、角度を変えて置く。それでも置けなかったら、距離を変えて置く
     int i_offset_distance = 0;
 
-    for (; i_offset_distance < 55; i_offset_distance++) {
+    for (; i_offset_distance < G_OFFSET_DISTANCE_55_SIZE; i_offset_distance++) {
         int offset_distance = offset_distance_55[i_offset_distance];
         float next_distance_f = distance_f + (float)offset_distance;
 
@@ -627,13 +619,12 @@ DLL_EXPORT int cgfgui_thinking(
             continue;
         }
 
-        for (int i_angle = 0; i_angle < 360; i_angle++) {
+        for (int i_angle = 0; i_angle < G_ANGLE_DEGREES_360_SIZE; i_angle++) {
             int offset_angle_degrees = next_angle_degrees();
             int next_degrees = starting_angle_degrees + offset_angle_degrees;
 
-            // TODO radians は整数型（0, 1）にした方が面白い？
-            int offset_y = (int)(next_distance_f * sin((int)degrees_to_radians(next_degrees)));
-            int offset_x = (int)(next_distance_f * cos((int)degrees_to_radians(next_degrees)));
+            int offset_y = (int)(next_distance_f * sin(degrees_to_radians(next_degrees)));
+            int offset_x = (int)(next_distance_f * cos(degrees_to_radians(next_degrees)));
 
             int next_y_before_conditioning = offset_y + last_y;
             int next_x_before_conditioning = offset_x + last_x;
@@ -688,7 +679,7 @@ end_of_loop_for_distance:
     ;
 
     // 置けなかったんだ ----> パスする
-    if (55 <= i_offset_distance) {
+    if (G_OFFSET_DISTANCE_55_SIZE <= i_offset_distance) {
         PRT(L"[%4d手目]  距離を変えても石を置けなかったからパスする\n", dll_tesuu + 1);
         return 0;
     }
