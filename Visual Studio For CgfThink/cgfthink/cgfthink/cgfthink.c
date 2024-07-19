@@ -111,7 +111,7 @@ int g_ishi = 0;	            // 取った石の数(再帰関数で使う)
 int g_liberty = 0;	        // 連の呼吸点の数(再帰関数で使う)
 int g_last_liberty_z = -1;   // 呼吸点の探索中の最後にスキャンした空点。もし呼吸点が１個の場合、この呼吸点を埋めると石を取り上げることができる
 
-int kou_z = 0;	// 次にコウになる位置
+int g_kou_z = 0;	// 次にコウになる位置
 int hama[2];	// [0]... 黒が取った石の数, [1]...白が取った石の数
 int sg_time[2];	// 累計思考時間
 
@@ -354,7 +354,7 @@ void setupCurrentPosition(
     board_size = dll_board_size;    // 盤サイズをグローバル変数に入れる
     hama[0] = hama[1] = 0;          // アゲハマの数を０にする
     sg_time[0] = sg_time[1] = 0;	// 累計思考時間を０にする
-    kou_z = 0;                      // コウのマス番号を無しにする
+    g_kou_z = 0;                    // コウのマス番号を無しにする
 }
 
 
@@ -441,11 +441,37 @@ int maybe_it_is_ko(
 {
     // １～２手目にコウになることはない
     if (dll_tesuu < 2) {
+        PRT(L"[%4d手目]  １～２手目にコウになることはない\n", dll_tesuu + 1);
         return 0;
     }
 
+    // デバッグ表示
+    for (int i = 2; i <= dll_tesuu; i++) {
+        int ret_y = get_y(ret_z);
+        int ret_x = get_x(ret_z);
+
+        int kifu_z = dll_kifu[i - 2][0];
+        int is_ko = kifu_z == ret_z;
+        int kifu_y = get_y(kifu_z);
+        int kifu_x = get_x(kifu_z);
+
+        PRT(L"i:%4d  ret(x, y):(%2d, %2d)  kifu(x, y):(%2d, %2d)  is_ko:%1d\n", i, ret_x, ret_y, kifu_x, kifu_y, is_ko);
+    }
+
     // ２手前、つまり自分の１つ前と同じ交点に着手しようとしたら、（コウでないケースもあるが）コウとする
-    return dll_kifu[dll_tesuu - 2][0] == ret_z;
+    int kifu_z = dll_kifu[dll_tesuu - 2][0];
+    int is_ko = kifu_z == ret_z;
+    int kifu_y = get_y(kifu_z);
+    int kifu_x = get_x(kifu_z);
+
+    if (is_ko) {
+        PRT(L"[%4d手目]  ret_z:%04x  kifu_z:%04x  kifu(x, y):(%2d, %2d)  コウだ\n", dll_tesuu + 1, ret_z & 0xff, kifu_z & 0xff, kifu_x, kifu_y);
+    }
+    else {
+        PRT(L"[%4d手目]  ret_z:%04x  kifu_z:%04x  kifu(x, y):(%2d, %2d)  コウではない\n", dll_tesuu + 1, ret_z & 0xff, kifu_z & 0xff, kifu_x, kifu_y);
+    }
+
+    return is_ko;
 }
 
 
@@ -459,7 +485,13 @@ int next_angle_degrees() {
 
 // 相手の石を取り上げられる空点があるなら、それを返す。無ければ -1
 int find_atari_z(
-    int my_color    // 自分の石の色
+    int dll_kifu[][3],		// 棋譜
+                            // [n][]...手数
+                            // [][0]...座標
+                            // [][1]...石の色
+                            // [][2]...消費時間（秒)
+    int dll_tesuu,			// 手数
+    int my_color            // 自分の石の色
 ) {
     int old_liberty = g_liberty;
     int old_ishi = g_ishi;
@@ -479,6 +511,12 @@ int find_atari_z(
 
                 // アタリだ
                 if (g_liberty == 1 && max_atari_ishi < g_ishi) {
+
+                    // アテがコウになるなら無視
+                    if (maybe_it_is_ko(dll_kifu, dll_tesuu, g_last_liberty_z)) {
+                        continue;
+                    }
+
                     max_atari_ishi = g_ishi;
                     atari_z = g_last_liberty_z;
                 }
@@ -566,7 +604,7 @@ DLL_EXPORT int cgfgui_thinking(
     // ##########
     // # 石を取り上げられる呼吸点があるなら、優先して置く
     // ##########
-    int atari_z = find_atari_z(my_color);
+    int atari_z = find_atari_z(dll_kifu, dll_tesuu, my_color);
     if (atari_z != -1) {
         int atari_x = get_x(atari_z);
         int atari_y = get_y(atari_z);
@@ -923,10 +961,10 @@ int move_one(int z, int color)
     int un_col = UNCOL(color);
 
     if (z == 0) {	// PASSの場合
-        kou_z = 0;
+        g_kou_z = 0;
         return MOVE_SUCCESS;
     }
-    if (z == kou_z) {
+    if (z == g_kou_z) {
         PRT(L"move() Err: コウ！z=%04x\n", z);
         return MOVE_KOU;
     }
@@ -957,10 +995,10 @@ int move_one(int z, int color)
     }
 
     // 次にコウになる位置を判定。石を1つだけ取った場合。
-    kou_z = 0;	// コウではない
+    g_kou_z = 0;	// コウではない
     if (all_ishi == 1) {
         // 取られた石の4方向に自分のダメ1の連が1つだけある場合、その位置はコウ。
-        kou_z = del_z;	// 取り合えず取られた石の場所をコウの位置とする
+        g_kou_z = del_z;	// 取り合えず取られた石の場所をコウの位置とする
         sum = 0;
         for (i = 0; i < 4; i++) {
             z1 = del_z + dir4[i];
@@ -972,7 +1010,7 @@ int move_one(int z, int color)
             PRT(L"１つ取られて、コウの位置へ打つと、１つの石を2つ以上取れる？z=%04x\n", z);
             return MOVE_FATAL;
         }
-        if (sum == 0) kou_z = 0;	// コウにはならない。
+        if (sum == 0) g_kou_z = 0;	// コウにはならない。
     }
     return MOVE_SUCCESS;
 }
