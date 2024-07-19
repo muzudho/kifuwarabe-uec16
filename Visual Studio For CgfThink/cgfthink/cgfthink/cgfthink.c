@@ -453,7 +453,7 @@ DLL_EXPORT int cgfgui_thinking(
         int next_x = 9;
         int next_y = 9;
         ret_z = get_z(next_x, next_y);
-        PRT(L"[%4d手目]  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]\n", dll_tesuu + 1, next_x, next_y, ret_z, ret_z & 0xff);
+        PRT(L"[%4d手目]  next(x, y):(%2d, %2d)  ret_z:[%4d %04x]  天元に打つ\n", dll_tesuu + 1, next_x, next_y, ret_z, ret_z & 0xff);
         return ret_z;
     }
 
@@ -465,7 +465,7 @@ DLL_EXPORT int cgfgui_thinking(
     // 相手がＰａｓｓなら自分もＰａｓｓ
     if (last_z == 0) {
         ret_z = 0;
-        PRT(L"[%4d手目]  pass  ret_z:[%4d, %04x]\n", dll_tesuu + 1, ret_z, ret_z & 0xff);
+        PRT(L"[%4d手目]  pass  ret_z:[%4d, %04x]  相手がパスしたから自分もパス\n", dll_tesuu + 1, ret_z, ret_z & 0xff);
         return ret_z;
     }
 
@@ -476,8 +476,8 @@ DLL_EXPORT int cgfgui_thinking(
     // 距離 ----> 剰余を使いたいので、整数にします
     int distance = 0;
 
-    // 角度（度数法）。 0 ～ 359
-    int degrees = 0;
+    // 角度（度数法）の初期値。 0 ～ 359。 石が置けなかったとき、この角度は変更されていく
+    int starting_angle_degrees = 0;
 
     int distance_offset = 0;
 
@@ -485,19 +485,26 @@ DLL_EXPORT int cgfgui_thinking(
     // # ２手目、かつ相手が初手に天元を打ったケース
     // ##########
     //
-    //      距離は 19/4、角度 ０°とする。
+    //      距離は 19/4、角度 ４５°とする。
     //
     if (dll_tesuu == 1 && last_z == get_z(9, 9)) {
         // 距離を１９路盤の辺の４分の１とする
         distance = (int)(19.0f / 4.0f);
 
         // 角度
-        degrees = 0;
-        PRT(L"[%4d手目]  distance:%2d  degrees:%3d  相手は初手を天元に打った\n", dll_tesuu + 1, distance, degrees);
+        starting_angle_degrees = 45;
+        PRT(L"[%4d手目]  distance:%2d  starting_angle_degrees:%3d  相手は初手を天元に打った\n", dll_tesuu + 1, distance, starting_angle_degrees);
     }
     else {
+        PRT(L"[%4d手目]  相手は初手を天元以外に打った\n", dll_tesuu + 1);
+
+        int my_last_z;
+        int my_last_x;
+        int my_last_y;
+
         int diff_x;
         int diff_y;
+
 
         // ##########
         // # ２手目
@@ -507,13 +514,10 @@ DLL_EXPORT int cgfgui_thinking(
         //
         if (dll_tesuu == 1) {
             // ２手前の自分の手はない。
-
-            // ２手前の自分は天元に打ったものと想定して、仮の値を入れる。
-            // 相手の着手と、天元の距離を測る
-
-            diff_x = last_x - 9;
-            diff_y = last_y - 9;
-            PRT(L"[%4d手目]  相手は初手を天元以外に打った\n", dll_tesuu + 1);
+            // しかし、２手前の自分の手が欲しいので、仮に、２手前の自分は天元に打ったものとしておく
+            my_last_z = get_z(9, 9);
+            my_last_x = get_x(my_last_z);
+            my_last_y = get_y(my_last_z);
         }
         // ##########
         // # 以下、３手目以降
@@ -524,15 +528,15 @@ DLL_EXPORT int cgfgui_thinking(
         else {
 
             // ２手前の自分の手
-            int my_last_z = dll_kifu[dll_tesuu - 2][0];
-            int my_last_x = get_x(my_last_z);
-            int my_last_y = get_y(my_last_z);
+            my_last_z = dll_kifu[dll_tesuu - 2][0];
+            my_last_x = get_x(my_last_z);
+            my_last_y = get_y(my_last_z);
             PRT(L"[%4d手目]  my_last(x, y):(%2d, %2d)  my_last_z:%04x\n", dll_tesuu + 1, my_last_x, my_last_y, my_last_z & 0xff);
-
-            // 相手の着手と、２手前の自分の着手の距離を測る
-            diff_x = last_x - my_last_x;
-            diff_y = last_y - my_last_y;
         }
+
+        // 相手の着手と、２手前の自分の着手の距離を測る
+        diff_x = last_x - my_last_x;
+        diff_y = last_y - my_last_y;
 
         // ２点の石の距離 ----> 直角三角形の斜辺の長さ
         // それだと距離が遠すぎるので、さらに半分にする
@@ -540,14 +544,14 @@ DLL_EXPORT int cgfgui_thinking(
 
         // ２点から角度を求める
         float radians = atan((float)diff_y / (float)diff_x);
-        degrees = radians_to_degrees(radians) % 360;
+        starting_angle_degrees = radians_to_degrees(radians) % 360;
     }
 
 
     // 石を置けなかったら、角度を変えて置く。それでも置けなかったら、距離を変えて置く
     for (; distance_offset < 20; distance_offset++) {
         for (int degrees_offset = 0; degrees_offset < 360; degrees_offset++) {
-            int next_degrees = degrees + degrees_offset;
+            int next_degrees = starting_angle_degrees + degrees_offset;
             int next_distance = (distance + distance_offset) % 19;
 
             int next_y = (int)((float)next_distance * sin(degrees_to_radians(next_degrees))) + last_y;
@@ -566,21 +570,25 @@ DLL_EXPORT int cgfgui_thinking(
                 // 自殺手ならやり直し
                 count_dame(ret_z);
                 if (dame == 0) {
-                    PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+                    PRT(L"[%4d手目]  next_distance:%2.2f  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, next_x, next_y, ret_z & 0xff, destination_color);
+                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  degrees_offset:%3d\n", next_degrees, starting_angle_degrees, degrees_offset);
                     continue;
                 }
 
                 // 多分、コウならやり直し
                 if (maybe_it_is_ko(dll_kifu, dll_tesuu, ret_z)) {
-                    PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+                    PRT(L"[%4d手目]  next_distance:%2.2f  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, next_x, next_y, ret_z & 0xff, destination_color);
+                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  degrees_offset:%3d\n", next_degrees, starting_angle_degrees, degrees_offset);
                     continue;
                 }
 
-                PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+                PRT(L"[%4d手目]  next_distance:%2.2f  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, next_distance, next_x, next_y, ret_z & 0xff, destination_color);
+                PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  degrees_offset:%3d\n", next_degrees, starting_angle_degrees, degrees_offset);
                 goto end_of_loop_for_distance;
             }
 
-            PRT(L"[%4d手目]  next_distance:%2.2f  next_degrees:%3d  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, next_degrees, next_x, next_y, ret_z & 0xff, destination_color);
+            PRT(L"[%4d手目]  next_distance:%2.2f  next(x, y):(%2d, %2d)  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, next_x, next_y, ret_z & 0xff, destination_color);
+            PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  degrees_offset:%3d\n", next_degrees, starting_angle_degrees, degrees_offset);
         }
     }
 end_of_loop_for_distance:
