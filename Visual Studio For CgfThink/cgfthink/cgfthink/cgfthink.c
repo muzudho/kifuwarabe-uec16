@@ -108,6 +108,9 @@ int kou_z = 0;	// 次にコウになる位置
 int hama[2];	// [0]... 黒が取った石の数, [1]...白が取った石の数
 int sg_time[2];	// 累計思考時間
 
+// 角度に乱数を入れていないと、同じパターンでハメれるので、乱数を入れておく
+int angle_degrees_360[360];
+
 #define UNCOL(x) (3-(x))	// 石の色を反転させる
 
 // move()関数で手を進めた時の結果
@@ -190,6 +193,25 @@ DLL_EXPORT void cgfgui_thinking_init(int* ptr_stop_thinking)
     PRT(L"デバッグ用の窓です。PRT()関数で出力できます。\n");
 
     // この下に、メモリの確保など必要な場合のコードを記述してください。
+
+    // 角度
+    for (int i = 0; i < 360; i++) {
+        angle_degrees_360[i] = i;
+    }
+
+    // 2πe を掛ければ、だいたい混ざる
+    int size = 360;
+    int shuffle_number = size * 2 * 3.14159 * 2.71828;
+    for (int k = 0; k < shuffle_number; k++) {
+        for (int i = 0; i < size; i++) {
+            int j = rand() % size;
+
+            // swap
+            int temp = angle_degrees_360[i];
+            angle_degrees_360[j] = angle_degrees_360[i];
+            angle_degrees_360[i] = temp;
+        }
+    }
 }
 
 
@@ -267,13 +289,12 @@ int subtract_small_from_large(int a, int b) {
 
 
 int radians_to_degrees(float radians) {
-    return (int)(radians * (180 / 3.14159));
+    return (int)(radians * (180.0f / 3.14159f));
 }
 
 
-int degrees_to_radians(int degrees) {
-    return degrees * 3.14159f / 180.0f;
-
+float degrees_to_radians(int degrees) {
+    return (float)degrees * 3.14159f / 180.0f;
 }
 
 
@@ -550,12 +571,14 @@ DLL_EXPORT int cgfgui_thinking(
 
     // 石を置けなかったら、角度を変えて置く。それでも置けなかったら、距離を変えて置く
     for (; distance_offset < 20; distance_offset++) {
-        for (int offset_degrees = 0; offset_degrees < 360; offset_degrees++) {
-            int next_degrees = starting_angle_degrees + offset_degrees;
+        for (int i_angle = 0; i_angle < 360; i_angle++) {
+            int offset_angle_degrees = angle_degrees_360[i_angle];
+            int next_degrees = starting_angle_degrees + offset_angle_degrees;
             int next_distance = (distance + distance_offset) % 19;
 
-            int offset_y = (int)((float)next_distance * sin(degrees_to_radians(next_degrees)));
-            int offset_x = (int)((float)next_distance * cos(degrees_to_radians(next_degrees)));
+            // TODO radians は整数型（0, 1）にした方が面白い？
+            int offset_y = (int)((float)next_distance * sin((int)degrees_to_radians(next_degrees)));
+            int offset_x = (int)((float)next_distance * cos((int)degrees_to_radians(next_degrees)));
 
             int next_y_before_conditioning = offset_y + last_y;
             int next_x_before_conditioning = offset_x + last_x;
@@ -574,7 +597,7 @@ DLL_EXPORT int cgfgui_thinking(
                 count_dame(ret_z);
                 if (dame == 0) {
                     PRT(L"[%4d手目]  next_distance:%2.2f  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, next_distance, ret_z & 0xff, destination_color);
-                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_degrees);
+                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
                     PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                     PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                     continue;
@@ -583,21 +606,21 @@ DLL_EXPORT int cgfgui_thinking(
                 // 多分、コウならやり直し
                 if (maybe_it_is_ko(dll_kifu, dll_tesuu, ret_z)) {
                     PRT(L"[%4d手目]  next_distance:%2.2f  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, next_distance, ret_z & 0xff, destination_color);
-                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_degrees);
+                    PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
                     PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                     PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                     continue;
                 }
 
                 PRT(L"[%4d手目]  next_distance:%2.2f  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, next_distance, ret_z & 0xff, destination_color);
-                PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_degrees);
+                PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
                 PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                 PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                 goto end_of_loop_for_distance;
             }
 
             PRT(L"[%4d手目]  next_distance:%2.2f  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, next_distance, ret_z & 0xff, destination_color);
-            PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_degrees);
+            PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees);
             PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
             PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
         }
