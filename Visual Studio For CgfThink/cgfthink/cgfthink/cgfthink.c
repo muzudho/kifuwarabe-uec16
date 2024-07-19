@@ -107,8 +107,10 @@ int board_size;	// 盤面のサイズ。19路盤では19、9路盤では9
 // 左右、上下に移動する場合の動く量
 int dir4[4] = { +0x001,-0x001,+0x100,-0x100 };
 
-int g_ishi = 0;	    // 取った石の数(再帰関数で使う)
-int g_liberty = 0;	// 連の呼吸点の数(再帰関数で使う)
+int g_ishi = 0;	            // 取った石の数(再帰関数で使う)
+int g_liberty = 0;	        // 連の呼吸点の数(再帰関数で使う)
+int g_last_liberty_z = -1;   // 呼吸点の探索中の最後にスキャンした空点。もし呼吸点が１個の場合、この呼吸点を埋めると石を取り上げることができる
+
 int kou_z = 0;	// 次にコウになる位置
 int hama[2];	// [0]... 黒が取った石の数, [1]...白が取った石の数
 int sg_time[2];	// 累計思考時間
@@ -515,6 +517,18 @@ DLL_EXPORT int cgfgui_thinking(
     PRT(L"思考時間：先手=%d秒、後手=%d秒\n", sg_time[0], sg_time[1]);
 
     // ##########
+    // # 石を取り上げられる呼吸点があるなら、優先して置く
+    // ##########
+    if (g_liberty == 1 && g_last_liberty_z != -1 && board[g_last_liberty_z] == 0) {
+        int last_liberty_x = get_x(g_last_liberty_z);
+        int last_liberty_y = get_y(g_last_liberty_z);
+
+        PRT(L"[%4d手目]  last_liberty_x:%2d  last_liberty_y:%2d  g_last_liberty_z:%04x  石を取り上げられる空点に打つ\n", dll_tesuu + 1, last_liberty_x, last_liberty_y, g_last_liberty_z & 0xff);
+        return g_last_liberty_z;
+    }
+
+
+    // ##########
     // # １手目
     // ##########
     //
@@ -795,6 +809,7 @@ void count_liberty(int tz)
 {
     int i;
 
+    g_last_liberty_z = -1;
     g_liberty = g_ishi = 0;
 
     for (i = 0; i < BOARD_MAX; i++) {
@@ -813,14 +828,26 @@ void count_liberty_sub(int tz, int col)
 
     check_board[tz] = 1;			    // この石は検索済み	
     g_ishi++;							// 石の数
+
     for (i = 0; i < 4; i++) {
         z = tz + dir4[i];
-        if (check_board[z]) continue;
+
+        // チェック済みの交点はスキップ
+        if (check_board[z]) {
+            continue;
+        }
+
+        // 空点
         if (board[z] == 0) {
             check_board[z] = 1;	        // この空点は検索済み
+            g_last_liberty_z = z;       // 最後に探索した呼吸点
             g_liberty++;				// 呼吸点の数
         }
-        if (board[z] == col) count_liberty_sub(z, col);	// 未探索の自分の石
+
+        // 未探索の自分の石
+        if (board[z] == col) {
+            count_liberty_sub(z, col);
+        }
     }
 }
 
