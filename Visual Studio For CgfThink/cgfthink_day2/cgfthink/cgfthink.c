@@ -554,9 +554,6 @@ DLL_EXPORT int cgfgui_thinking(
     int dll_endgame_board[]	// 終局処理の結果を代入する。
 )
 {
-    //int z, t, i;
-    int ret_z;
-
     int my_color;
 
     if (dll_black_turn == 1) {
@@ -652,11 +649,10 @@ DLL_EXPORT int cgfgui_thinking(
     //
     if (dll_tesuu == 0) {
         // 天元に打つ
-        int next_x = 9;
-        int next_y = 9;
-        ret_z = get_z(next_x, next_y);
-        PRT(L"[%4d手目]  next_masu:(%2d, %2d)  ret_z:[%4d %04x]  天元に打つ\n", dll_tesuu + 1, next_x + 1, next_y + 1, ret_z, ret_z & 0xff);
-        return ret_z;
+        PRT(L"[%4d手目]  天元に打つ\n", dll_tesuu + 1);
+
+        // 19路盤での天元
+        return get_z(9, 9);
     }
 
     // 以下、２手目以降
@@ -666,9 +662,8 @@ DLL_EXPORT int cgfgui_thinking(
 
     // 相手がＰａｓｓなら自分もＰａｓｓ
     if (last_z == 0) {
-        ret_z = 0;
-        PRT(L"[%4d手目]  pass  ret_z:[%4d, %04x]  相手がパスしたから自分もパス\n", dll_tesuu + 1, ret_z, ret_z & 0xff);
-        return ret_z;
+        PRT(L"[%4d手目]  pass  相手がパスしたから自分もパス\n", dll_tesuu + 1);
+        return 0;
     }
 
     int last_x = get_x(last_z);
@@ -753,6 +748,8 @@ DLL_EXPORT int cgfgui_thinking(
         starting_angle_degrees = radians_to_degrees(radians) % G_ANGLE_DEGREES_360_SIZE;
     }
 
+    // 着手。未設定
+    int ret_z = -1;
 
     // いくつかの変数は、あとでデバッグ表示します
     int i_constraints;
@@ -768,7 +765,7 @@ DLL_EXPORT int cgfgui_thinking(
     //
     //      カウントダウンしていく。 0 になったら制約なし、-1 になったら、制約なしでも石を置けなかった
     //
-    for (i_constraints = 0; -1 < i_constraints; i_constraints--) {
+    for (i_constraints = 1; -1 < i_constraints; i_constraints--) {
 
         // ##########
         // # 石を置けなかったら、距離を変えて置く
@@ -829,16 +826,17 @@ DLL_EXPORT int cgfgui_thinking(
                 }
 
 
-                ret_z = get_z(next_x, next_y);
-                destination_color = board[ret_z];
+                // 指し手の試行
+                int temp_ret_z = get_z(next_x, next_y);
+                destination_color = board[temp_ret_z];
 
                 // 空点には置ける
                 if (destination_color == 0) {
 
                     // 自殺手ならやり直し
-                    count_liberty(ret_z);
+                    count_liberty(temp_ret_z);
                     if (g_liberty == 0) {
-                        //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                        //PRT(L"[%4d手目]  temp_ret_z:%04x  board[temp_ret_z]:%d  自殺手\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
                         //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                         //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                         //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
@@ -847,14 +845,17 @@ DLL_EXPORT int cgfgui_thinking(
                     }
 
                     // コウならやり直し
-                    if (is_ko(ret_z)) {
-                        //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                    if (is_ko(temp_ret_z)) {
+                        //PRT(L"[%4d手目]  temp_ret_z:%04x  board[temp_ret_z]:%d  コウ\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
                         //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                         //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                         //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                         //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
                         continue;
                     }
+
+                    // 指し手の更新
+                    ret_z = temp_ret_z;
 
                     //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                     //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
@@ -878,8 +879,8 @@ end_of_loop_for_stone_puts:
 
 
 
-    // なんの制約も課しておらず、それでも石を置けなかった ----> パスする
-    if (i_constraints < 0) {
+    // 石を置けなかった ----> パスする
+    if (ret_z == -1) {
         PRT(L"[%4d手目]  どこにでも石を置こうとしても、石を置けなかったからパスする\n", dll_tesuu + 1);
         return 0;
     }
