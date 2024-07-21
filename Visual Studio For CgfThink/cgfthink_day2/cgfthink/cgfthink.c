@@ -603,9 +603,10 @@ DLL_EXPORT int cgfgui_thinking(
     //      ----> １８００秒を４００で割ると４．５。　１手平均４．５秒使ってしまうと時間切れになる。
     //            １手２秒ぐらいスリープさせても８００秒。約１３分強。これぐらい時間を消費させた方がゆっくり観戦できるのでは？
     //            処理を増やすと、もっと時間消費するかも。
-    int sleepSeconds = 2;
+    int sleepSeconds = 0; // for debug
+    //int sleepSeconds = 2;
     PRT(L"スリープ %4d 秒", sleepSeconds);
-    Sleep(2 * 1000);
+    Sleep(sleepSeconds * 1000);
 
     PRT(L"[%4d手目]  思考時間：先手=%d秒、後手=%d秒\n", dll_tesuu + 1, sg_time[0], sg_time[1]);
 
@@ -799,7 +800,7 @@ DLL_EXPORT int cgfgui_thinking(
                 int next_x = offset_x + last_x;
 
                 // 盤外だ
-                if ((next_y < 0 || 19 <= next_y) &&
+                if ((next_y < 0 || 19 <= next_y) ||
                     (next_x < 0 || 19 <= next_x)) {
 
                     // 制約Ｌｖ１：　盤外に石が飛び出してはいけない
