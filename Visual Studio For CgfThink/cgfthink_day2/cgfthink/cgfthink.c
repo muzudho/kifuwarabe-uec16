@@ -660,9 +660,21 @@ int is_aki_sankaku(
     // +---+---+
     // | 1 | 2 |
     // +---+---+
-    if (adjacent_color[south] == my_color &&    // 1
-        adjacent_color[south_east] == 0 &&      // 2
-        adjacent_color[east] == my_color) {     // 3
+    if (adjacent_color[south] == 0 &&               // 1
+        adjacent_color[south_east] == my_color &&   // 2
+        adjacent_color[east] == my_color) {         // 3
+        return 1;
+    }
+
+    if (adjacent_color[south] == my_color &&        // 1
+        adjacent_color[south_east] == 0 &&          // 2
+        adjacent_color[east] == my_color) {         // 3
+        return 1;
+    }
+
+    if (adjacent_color[south] == my_color &&        // 1
+        adjacent_color[south_east] == my_color &&   // 2
+        adjacent_color[east] == 0) {                // 3
         return 1;
     }
 
