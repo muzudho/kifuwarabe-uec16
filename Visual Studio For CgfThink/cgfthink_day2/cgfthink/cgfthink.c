@@ -564,10 +564,10 @@ int is_aki_sankaku(
     for (int dir = 0; dir < 8; dir ++) {
         int x = adjacent_x[dir];
         int y = adjacent_y[dir];
-        int adjacent_z = get_z(x, y);
 
         // 盤内
         if (0 <= x && x < 19 && 0 <= y && y < 19) {
+            int adjacent_z = get_z(x, y);
             adjacent_color[dir] = g_board[adjacent_z];
         }
     }
@@ -576,30 +576,30 @@ int is_aki_sankaku(
     // 盤外は -1 なので、空き三角の条件には当てはまらない
 
     // 東、北東、北、
-    if (g_board[get_z(adjacent_x[east], adjacent_y[east])] == my_color &&
-        g_board[get_z(adjacent_x[north_east], adjacent_y[north_east])] == 0 &&
-        g_board[get_z(adjacent_x[north], adjacent_y[north])] == my_color) {
+    if (adjacent_color[east] == my_color &&
+        adjacent_color[north_east] == 0 &&
+        adjacent_color[north] == my_color) {
         return 1;
     }
 
     // 北、北西、西
-    if (g_board[get_z(adjacent_x[north], adjacent_y[north])] == my_color &&
-        g_board[get_z(adjacent_x[north_west], adjacent_y[north_west])] == 0 &&
-        g_board[get_z(adjacent_x[west], adjacent_y[west])] == my_color) {
+    if (adjacent_color[north] == my_color &&
+        adjacent_color[north_west] == 0 &&
+        adjacent_color[west] == my_color) {
         return 1;
     }
 
     // 西、南西、南
-    if (g_board[get_z(adjacent_x[west], adjacent_y[west])] == my_color &&
-        g_board[get_z(adjacent_x[south_west], adjacent_y[south_west])] == 0 &&
-        g_board[get_z(adjacent_x[south], adjacent_y[south])] == my_color) {
+    if (adjacent_color[west] == my_color &&
+        adjacent_color[south_west] == 0 &&
+        adjacent_color[south] == my_color) {
         return 1;
     }
 
     // 南、南東、東
-    if (g_board[get_z(adjacent_x[south], adjacent_y[south])] == my_color &&
-        g_board[get_z(adjacent_x[south_east], adjacent_y[south_east])] == 0 &&
-        g_board[get_z(adjacent_x[east], adjacent_y[east])] == my_color) {
+    if (adjacent_color[south] == my_color &&
+        adjacent_color[south_east] == 0 &&
+        adjacent_color[east] == my_color) {
         return 1;
     }
 
