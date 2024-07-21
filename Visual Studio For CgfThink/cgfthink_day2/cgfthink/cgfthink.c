@@ -130,6 +130,8 @@ int hama[2];	// [0]... 黒が取った石の数, [1]...白が取った石の数
 int sg_time[2];	// 累計思考時間
 
 #define UNCOL(x) (3-(x))	// 石の色を反転させる
+                            // 1: 黒石
+                            // 2: 白石
 
 // move()関数で手を進めた時の結果
 enum MoveResult {
@@ -572,34 +574,95 @@ int is_aki_sankaku(
         }
     }
 
-    // ４箇所のチェック。空き三角が１つでもあれば真
+    // 空き三角が１つでもあれば真
     // 盤外は -1 なので、空き三角の条件には当てはまらない
 
-    // 東、北東、北、
-    if (adjacent_color[east] == my_color &&
-        adjacent_color[north_east] == 0 &&
-        adjacent_color[north] == my_color) {
+    // 東、北東、北
+    //
+    // +---+---+
+    // | 3 | 2 |
+    // +---+---+
+    // |you| 1 |
+    // +---+---+
+    if (adjacent_color[east] == 0 &&                // 1
+        adjacent_color[north_east] == my_color &&   // 2
+        adjacent_color[north] == my_color) {        // 3
         return 1;
     }
 
+    if (adjacent_color[east] == my_color &&         // 1
+        adjacent_color[north_east] == 0 &&          // 2
+        adjacent_color[north] == my_color) {        // 3
+        return 1;
+    }
+
+    if (adjacent_color[east] == my_color &&         // 1
+        adjacent_color[north_east] == my_color &&   // 2
+        adjacent_color[north] == 0) {               // 3
+        return 1;
+    }
+
+
     // 北、北西、西
-    if (adjacent_color[north] == my_color &&
-        adjacent_color[north_west] == 0 &&
-        adjacent_color[west] == my_color) {
+    //
+    // +---+---+
+    // | 2 | 1 |
+    // +---+---+
+    // | 3 |you|
+    // +---+---+
+    if (adjacent_color[north] == 0 &&               // 1
+        adjacent_color[north_west] == my_color &&   // 2
+        adjacent_color[west] == my_color) {         // 3
+        return 1;
+    }
+
+    if (adjacent_color[north] == my_color &&        // 1
+        adjacent_color[north_west] == 0 &&          // 2
+        adjacent_color[west] == my_color) {         // 3
+        return 1;
+    }
+
+    if (adjacent_color[north] == my_color &&        // 1
+        adjacent_color[north_west] == my_color &&   // 2
+        adjacent_color[west] == 0) {                // 3
         return 1;
     }
 
     // 西、南西、南
-    if (adjacent_color[west] == my_color &&
-        adjacent_color[south_west] == 0 &&
-        adjacent_color[south] == my_color) {
+    //
+    // +---+---+
+    // | 1 |you|
+    // +---+---+
+    // | 2 | 3 |
+    // +---+---+
+    if (adjacent_color[west] == 0 &&                // 1
+        adjacent_color[south_west] == my_color &&   // 2
+        adjacent_color[south] == my_color) {        // 3
+        return 1;
+    }
+
+    if (adjacent_color[west] == my_color &&         // 1
+        adjacent_color[south_west] == 0 &&          // 2
+        adjacent_color[south] == my_color) {        // 3
+        return 1;
+    }
+
+    if (adjacent_color[west] == my_color &&         // 1
+        adjacent_color[south_west] == my_color &&   // 2
+        adjacent_color[south] == 0) {               // 3
         return 1;
     }
 
     // 南、南東、東
-    if (adjacent_color[south] == my_color &&
-        adjacent_color[south_east] == 0 &&
-        adjacent_color[east] == my_color) {
+    //
+    // +---+---+
+    // |you| 3 |
+    // +---+---+
+    // | 1 | 2 |
+    // +---+---+
+    if (adjacent_color[south] == my_color &&    // 1
+        adjacent_color[south_east] == 0 &&      // 2
+        adjacent_color[east] == my_color) {     // 3
         return 1;
     }
 
@@ -638,9 +701,11 @@ DLL_EXPORT int cgfgui_thinking(
 {
     int my_color;
 
+    // 黒石
     if (dll_black_turn == 1) {
         my_color = 1;
     }
+    // 白石
     else {
         my_color = 2;
     }
@@ -947,51 +1012,55 @@ DLL_EXPORT int cgfgui_thinking(
                 int temp_ret_z = get_z(next_x, next_y);
                 destination_color = g_board[temp_ret_z];
 
-                // 空点には置ける
-                if (destination_color == 0) {
-
-                    // 自殺手ならやり直し
-                    count_liberty(temp_ret_z);
-                    if (g_liberty == 0) {
-                        //PRT(L"[%4d手目]  temp_ret_z:%04x  g_board[temp_ret_z]:%d  自殺手\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
-                        //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
-                        //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
-                        //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
-                        //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
-                        continue;
-                    }
-
-                    // コウならやり直し
-                    if (is_ko(temp_ret_z)) {
-                        //PRT(L"[%4d手目]  temp_ret_z:%04x  g_board[temp_ret_z]:%d  コウ\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
-                        //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
-                        //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
-                        //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
-                        //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
-                        continue;
-                    }
-
-                    // 空き三角ならやり直し
-                    if (1 <= i_constraints && is_aki_sankaku(my_color, temp_ret_z)) {
-                        continue;
-                    }
-
-                    // 指し手の更新
-                    ret_z = temp_ret_z;
-
-                    //PRT(L"[%4d手目]  ret_z:%04x  g_board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                // 空点以外には置けない
+                if (destination_color != 0) {
+                    //PRT(L"[%4d手目]  ret_z:%04x  g_board[ret_z]:%d  石がある\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                     //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                     //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                     //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                     //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
-                    goto end_of_loop_for_stone_puts;
+                    continue;
+                }
+                     
+
+                // 自殺手ならやり直し
+                count_liberty(temp_ret_z);
+                if (g_liberty == 0) {
+                    //PRT(L"[%4d手目]  temp_ret_z:%04x  g_board[temp_ret_z]:%d  自殺手\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
+                    //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
+                    //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
+                    //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
+                    //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
+                    continue;
                 }
 
-                //PRT(L"[%4d手目]  ret_z:%04x  g_board[ret_z]:%d  石がある\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+
+                // コウならやり直し
+                if (is_ko(temp_ret_z)) {
+                    //PRT(L"[%4d手目]  temp_ret_z:%04x  g_board[temp_ret_z]:%d  コウ\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
+                    //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
+                    //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
+                    //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
+                    //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
+                    continue;
+                }
+
+
+                // 空き三角ならやり直し
+                if (1 <= i_constraints && is_aki_sankaku(my_color, temp_ret_z)) {
+                    continue;
+                }
+
+
+                // 指し手の更新
+                ret_z = temp_ret_z;
+
+                //PRT(L"[%4d手目]  ret_z:%04x  g_board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                 //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                 //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                 //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                 //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
+                goto end_of_loop_for_stone_puts;
             }
         }
     }
