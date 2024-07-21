@@ -529,9 +529,9 @@ int find_atari_z(
     return atari_z;
 }
 
-// TODO 空き三角チェック
+// 空き三角チェック
 //
-//  そこに石を置くと、空き三角になるか？
+//      そこに石を置くと、空き三角になるか？
 //
 int is_aki_sankaku(
     int my_color,           // 石の色
@@ -1184,38 +1184,8 @@ int get_z(int x, int y)
 }
 
 
-// 位置 tz における呼吸点の数と石の数を計算。結果はグローバル変数に。
-void count_liberty(int tz)
-{
-    // 初期化
-    for (int i = 0; i < G_BOARD_AREA_19ROBAN; i++) {
-        // 連Id ----> 未指定
-        g_ren_id_by_each_node[i] = -1;
-
-        // 連の石の色 ----> 空点
-        g_color_each_ren[i] = 0;
-
-        // 連の石の数
-        g_stones_each_ren[i] = 0;
-
-        // 連の呼吸点数
-        g_liberty_each_ren[i] = 0;
-    }
-
-
-    int i;
-
-    g_last_liberty_z = -1;
-    g_liberty = g_ishi = 0;
-
-    for (i = 0; i < BOARD_MAX; i++) {
-        check_board[i] = 0;
-    }
-
-    count_liberty_sub(tz, g_board[tz]);
-}
-
-
+// count_liberty 関数のサブ関数
+//
 // 呼吸点と石の数える再帰関数
 // 4方向を調べて、空白だったら+1、自分の石なら再帰で。相手の石、壁ならそのまま。
 void count_liberty_sub(int tz, int my_color)
@@ -1248,6 +1218,38 @@ void count_liberty_sub(int tz, int my_color)
             count_liberty_sub(z, my_color);
         }
     }
+}
+
+
+// 位置 tz における呼吸点の数と石の数を計算。結果はグローバル変数に入れる。
+void count_liberty(int tz)
+{
+    // 初期化
+    for (int i = 0; i < G_BOARD_AREA_19ROBAN; i++) {
+        // 連Id ----> 未指定
+        g_ren_id_by_each_node[i] = -1;
+
+        // 連の石の色 ----> 空点
+        g_color_each_ren[i] = 0;
+
+        // 連の石の数
+        g_stones_each_ren[i] = 0;
+
+        // 連の呼吸点数
+        g_liberty_each_ren[i] = 0;
+    }
+
+
+    int i;
+
+    g_last_liberty_z = -1;
+    g_liberty = g_ishi = 0;
+
+    for (i = 0; i < BOARD_MAX; i++) {
+        check_board[i] = 0;
+    }
+
+    count_liberty_sub(tz, g_board[tz]);
 }
 
 
