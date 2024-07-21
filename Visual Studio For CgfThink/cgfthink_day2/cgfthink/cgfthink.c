@@ -1,6 +1,14 @@
 ﻿// 第１６回ＵＥＣ杯コンピュータ囲碁大会用きふわらべ
+//
+// 今大会でのコンセプト：
 // 
-// ベース：
+//      コンパス　きふわらべ
+// 
+//          １つ前の自分の手と、さっきの相手の着手の２つの石の距離分コンパスを広げ、
+//          相手の着手にコンパスの針を突き立てて、円を描く。
+//          その円状に石を置く。
+// 
+// ソースのベース：
 //      CgfGoban.exe用の思考ルーチンのサンプル
 //      2005/06/04 - 2005/07/15 山下 宏
 //      乱数で手を返すだけです。
@@ -516,6 +524,8 @@ int find_atari_z(
 }
 
 
+
+
 // ########
 // # 主要 #
 // ########
@@ -544,19 +554,6 @@ DLL_EXPORT int cgfgui_thinking(
     int dll_endgame_board[]	// 終局処理の結果を代入する。
 )
 {
-    // 第１６回ＵＥＣ杯コンピュータ囲碁大会
-    // 
-    // 持ち時間３０分　切れ負け
-    //      ----> ３０分は１８００秒。
-    //
-    // 手数上限は４００手
-    //      ----> １８００秒を４００で割ると４．５。　１手平均４．５秒使ってしまうと時間切れになる。
-    //            １手２秒ぐらいスリープさせても８００秒。約１３分強。これぐらい時間を消費させた方がゆっくり観戦できるのでは？
-    //            処理を増やすと、もっと時間消費するかも。
-    int sleepSeconds = 2;
-    PRT(L"スリープ %4d 秒", sleepSeconds);
-    Sleep(2 * 1000);
-
     //int z, t, i;
     int ret_z;
 
@@ -597,7 +594,22 @@ DLL_EXPORT int cgfgui_thinking(
 
     // 以下、プレイ
 
+    // 第１６回ＵＥＣ杯コンピュータ囲碁大会
+    // 
+    // 持ち時間３０分　切れ負け
+    //      ----> ３０分は１８００秒。
+    //
+    // 手数上限は４００手
+    //      ----> １８００秒を４００で割ると４．５。　１手平均４．５秒使ってしまうと時間切れになる。
+    //            １手２秒ぐらいスリープさせても８００秒。約１３分強。これぐらい時間を消費させた方がゆっくり観戦できるのでは？
+    //            処理を増やすと、もっと時間消費するかも。
+    int sleepSeconds = 2;
+    PRT(L"スリープ %4d 秒", sleepSeconds);
+    Sleep(2 * 1000);
+
     PRT(L"[%4d手目]  思考時間：先手=%d秒、後手=%d秒\n", dll_tesuu + 1, sg_time[0], sg_time[1]);
+
+
 
     // ##########
     // # １手目、または０手目
@@ -608,6 +620,9 @@ DLL_EXPORT int cgfgui_thinking(
     if (dll_tesuu < 2) {
         // 初期化
         g_angle_cursor = 0;
+
+        // 初回に情報表示
+        PRT(L"大会情報  盤サイズ:%d  コミ:%.1f\n", dll_board_size, dll_komi);
     }
 
     // ##########
@@ -721,9 +736,15 @@ DLL_EXPORT int cgfgui_thinking(
         diff_x = last_x - my_last_x;
         diff_y = last_y - my_last_y;
 
-        // ２点の石の距離 ----> 直角三角形の斜辺の長さ
-        // それだと距離が遠すぎるので、さらに半分にする
-        // さらに切り捨てで交点１つ分短くなっているように見えるので 0.5 足す
+        // ２点の石の距離
+        //      ---->   直角三角形の斜辺の長さ
+        // 
+        //              それだと距離が遠すぎるので、さらに半分にする
+        //                  ----> この　÷２　がキツすぎるのでは？
+        // 
+        //              さらに切り捨てで交点１つ分短くなっているように見えるので 0.5 足す
+        //                  ----> 0.5 を足して切り捨てれば、四捨五入と同じになるはず
+        //
         distance_f = (float)hypot(diff_x, diff_y) / 2.0f + 0.5f;
 
         // ２点から角度を求める
@@ -732,84 +753,140 @@ DLL_EXPORT int cgfgui_thinking(
     }
 
 
-    // 石を置けなかったら、角度を変えて置く。それでも置けなかったら、距離を変えて置く
-    int i_offset_distance = 0;
+    // いくつかの変数は、あとでデバッグ表示します
+    int i_constraints;
+    float next_distance_f = -1.0f;
+    int next_degrees = -1;
 
-    for (; i_offset_distance < G_OFFSET_DISTANCE_55_SIZE; i_offset_distance++) {
-        int offset_distance = offset_distance_55[i_offset_distance];
-        float next_distance_f = distance_f + (float)offset_distance;
+    // ##########
+    // # 石を置けなかったら、制限を緩めていく
+    // ##########
+    //
+    //      最初は、自分への指し方のルールを強めに課していて、
+    //      そのルールでは指せないこともあるから、そのときは自分に課した指し方のルールを緩めていく
+    //
+    //      カウントダウンしていく。 0 になったら制約なし、-1 になったら、制約なしでも石を置けなかった
+    //
+    for (i_constraints = 0; -1 < i_constraints; i_constraints--) {
 
-        // 距離０では、１つ前の手の石の上になるから、無視する
-        if (-1 < next_distance_f && next_distance_f < 1) {
-            continue;
-        }
+        // ##########
+        // # 石を置けなかったら、距離を変えて置く
+        // ##########
+        //
+        for (int i_offset_distance = 0; i_offset_distance < G_OFFSET_DISTANCE_55_SIZE; i_offset_distance++) {
+            int offset_distance = offset_distance_55[i_offset_distance];
+            next_distance_f = distance_f + (float)offset_distance;
 
-        for (int i_angle = 0; i_angle < G_ANGLE_DEGREES_360_SIZE; i_angle++) {
-            int offset_angle_degrees = next_angle_degrees();
-            int next_degrees = starting_angle_degrees + offset_angle_degrees;
+            // 距離０では、１つ前の手の石の上になるから、無視する
+            if (-1 < next_distance_f && next_distance_f < 1) {
+                continue;
+            }
 
-            int offset_y = (int)(next_distance_f * sin(degrees_to_radians(next_degrees)));
-            int offset_x = (int)(next_distance_f * cos(degrees_to_radians(next_degrees)));
+            // ##########
+            // # 石を置けなかったら、角度を変えて置く
+            // ##########
+            //
+            for (int i_angle = 0; i_angle < G_ANGLE_DEGREES_360_SIZE; i_angle++) {
+                int offset_angle_degrees = next_angle_degrees();
 
-            int next_y_before_conditioning = offset_y + last_y;
-            int next_x_before_conditioning = offset_x + last_x;
+                next_degrees = starting_angle_degrees + offset_angle_degrees;
 
-            // 盤外に石を投げてしまったら、反射したい
-            int next_y = reflection_y_on_the_wall(next_y_before_conditioning);
-            int next_x = reflection_x_on_the_wall(next_x_before_conditioning);
+                int offset_y = (int)(next_distance_f * sin(degrees_to_radians(next_degrees)));
+                int offset_x = (int)(next_distance_f * cos(degrees_to_radians(next_degrees)));
 
-            ret_z = get_z(next_x, next_y);
-            destination_color = board[ret_z];
+                // 調整後の座標
+                int next_y = offset_y + last_y;
+                int next_x = offset_x + last_x;
 
-            // 空点には置ける
-            if (destination_color == 0) {
+                // 盤外だ
+                if ((next_y < 0 || 19 <= next_y) &&
+                    (next_x < 0 || 19 <= next_x)) {
 
-                // 自殺手ならやり直し
-                count_liberty(ret_z);
-                if (g_liberty == 0) {
-                    //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                    // 制約Ｌｖ１：　盤外に石が飛び出してはいけない
+                    // ============================================
+                    if (1 <= i_constraints) {
+                        continue;
+                    }
+
+                    //// 調整前の座標を一時記憶。あとでデバッグ表示で使う
+                    //int next_y_before_conditioning = next_y;
+                    //int next_x_before_conditioning = next_x;
+
+                    // 盤外に石が飛び出したら、盤外に壁があると思って反射すればいい
+                    //
+                    //      ---->   盤外で反射するのは、観戦するには分かりづらいから、
+                    //              盤外で反射するのは、自分ルールの中での優先順位を下の方にしたい
+                    //
+
+                    // 盤外で反射
+                    // ==========
+                    // 
+                    //      盤外に石を投げてしまったら、反射したい
+                    //
+                    next_y = reflection_y_on_the_wall(next_y);
+                    next_x = reflection_x_on_the_wall(next_x);
+                }
+
+
+                ret_z = get_z(next_x, next_y);
+                destination_color = board[ret_z];
+
+                // 空点には置ける
+                if (destination_color == 0) {
+
+                    // 自殺手ならやり直し
+                    count_liberty(ret_z);
+                    if (g_liberty == 0) {
+                        //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  自殺手\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                        //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
+                        //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
+                        //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
+                        //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
+                        continue;
+                    }
+
+                    // コウならやり直し
+                    if (is_ko(ret_z)) {
+                        //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                        //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
+                        //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
+                        //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
+                        //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
+                        continue;
+                    }
+
+                    //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                     //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                     //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                     //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                     //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
-                    continue;
+                    goto end_of_loop_for_stone_puts;
                 }
 
-                // コウならやり直し
-                if (is_ko(ret_z)) {
-                    //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  コウ\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
-                    //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
-                    //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
-                    //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
-                    //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
-                    continue;
-                }
-
-                //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                 //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                 //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                 //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
                 //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
-                goto end_of_loop_for_distance;
             }
-
-            //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
-            //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
-            //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
-            //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
-            //PRT(L"            next_x_before_conditioning:%2d  =  offset_x:%2d  +  last_x:%2d  ...  next_x:%2d\n", next_x_before_conditioning, offset_x, last_x, next_x);
         }
     }
-end_of_loop_for_distance:
+
+end_of_loop_for_stone_puts:
     ;
 
-    // 置けなかったんだ ----> パスする
-    if (G_OFFSET_DISTANCE_55_SIZE <= i_offset_distance) {
-        PRT(L"[%4d手目]  距離を変えても石を置けなかったからパスする\n", dll_tesuu + 1);
+
+
+    // なんの制約も課しておらず、それでも石を置けなかった ----> パスする
+    if (i_constraints < 0) {
+        PRT(L"[%4d手目]  どこにでも石を置こうとしても、石を置けなかったからパスする\n", dll_tesuu + 1);
         return 0;
     }
 
-    PRT(L"着手=(%2d,%2d)(%04x), 手数=%d,手番=%d,盤size=%d,komi=%.1f\n", (ret_z & 0xff), (ret_z >> 8), ret_z, dll_tesuu, dll_black_turn, dll_board_size, dll_komi);
+    // z は表示しても、人間が見ても分からないから省略
+    //      "%04x", ret_z
+    //
+    PRT(L"[%3d手目]  着手:(%2d,%2d)  手番:%d  自分ルールのＬｖ:%2d  距離:%2.2f  角度:%3d\n", dll_tesuu + 1, (ret_z & 0xff), (ret_z >> 8), dll_black_turn, i_constraints, next_distance_f, next_degrees);
     //	print_board();
     return ret_z;
 }
