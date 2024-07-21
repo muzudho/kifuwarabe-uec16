@@ -482,7 +482,8 @@ int find_atari_z(
                             // [][2]...消費時間（秒)
     int dll_tesuu,			// 手数
     int my_color,           // 自分の石の色
-    int min_agehama         // 取り上げる石の最低数
+    int min_agehama,        // 取り上げる石の最低数
+    int max_agehama
 )
 {
     int old_liberty = g_liberty;
@@ -502,7 +503,7 @@ int find_atari_z(
                 count_liberty(z);
 
                 // アタリだ
-                if (g_liberty == 1 && max_atari_ishi < g_ishi && min_agehama <= g_ishi) {
+                if (g_liberty == 1 && max_atari_ishi < g_ishi && min_agehama <= g_ishi && g_ishi <= max_agehama) {
 
                     // アテがコウになるなら無視
                     if (is_ko(g_last_liberty_z)) {
@@ -600,8 +601,8 @@ DLL_EXPORT int cgfgui_thinking(
     //      ----> １８００秒を４００で割ると４．５。　１手平均４．５秒使ってしまうと時間切れになる。
     //            １手２秒ぐらいスリープさせても８００秒。約１３分強。これぐらい時間を消費させた方がゆっくり観戦できるのでは？
     //            処理を増やすと、もっと時間消費するかも。
-    //int sleepSeconds = 0; // for debug
-    int sleepSeconds = 2;
+    int sleepSeconds = 0; // for debug
+    //int sleepSeconds = 2;
     PRT(L"スリープ %4d 秒", sleepSeconds);
     Sleep(sleepSeconds * 1000);
 
@@ -626,20 +627,52 @@ DLL_EXPORT int cgfgui_thinking(
     // ##########
     // # 石を取り上げられる呼吸点があるなら、優先して置く
     // ##########
-    int atari_z = find_atari_z(
-        dll_kifu,
-        dll_tesuu,
-        my_color,
-        1);     // 最低でも取り上げる石の数。1 より大きい数字
+    {
+        int atari_z = find_atari_z(
+            dll_kifu,
+            dll_tesuu,
+            my_color,
+            1, 361);     // 最低でも取り上げる石の数。1 より大きい数字
 
-    if (atari_z != -1) {
-        int atari_x = get_x(atari_z);
-        int atari_y = get_y(atari_z);
+        if (atari_z != -1) {
+            int atari_x = get_x(atari_z);
+            int atari_y = get_y(atari_z);
 
-        //PRT(L"[%4d手目]  atari_x:%2d  atari_y:%2d  atari_z:%04x  石を取り上げられる空点に打つ\n", dll_tesuu + 1, atari_x, atari_y, atari_z & 0xff);
-        return atari_z;
+            PRT(L"[%4d手目]  atari_x:%2d  atari_y:%2d  atari_z:%04x  石を取り上げられる空点に打つ\n", dll_tesuu + 1, atari_x, atari_y, atari_z & 0xff);
+            return atari_z;
+        }
     }
 
+
+    // ##########
+    // # 取り上げられそうな石は、ノビをして逃げたい
+    // ##########
+    //
+    // 呼吸点が１になっている自分の連があれば、その呼吸点に着手したい。
+    //      ただし、コウと自殺手を除く
+    //
+    // シチョウになるリスクは増える
+    //
+    {
+        int atari_me_z = find_atari_z(
+            dll_kifu,
+            dll_tesuu,
+            UNCOL(my_color),
+            1, 2);     // 最低でも取り上げる石の数。1 より大きい数字
+
+        if (atari_me_z != -1 && !is_ko(atari_me_z)) {
+
+            // 自殺手でないことを判定
+            count_liberty(atari_me_z);
+            if (g_liberty != 0) {
+                int atari_me_x = get_x(atari_me_z);
+                int atari_me_y = get_y(atari_me_z);
+
+                PRT(L"[%4d手目]  atari_me_x:%2d  atari_me_y:%2d  atari_me_z:%04x  取り上げられそうな石は、ノビをして逃げたい\n", dll_tesuu + 1, atari_me_x, atari_me_y, atari_me_z & 0xff);
+                return atari_me_z;
+            }
+        }
+    }
 
     // ##########
     // # １手目
@@ -801,6 +834,8 @@ DLL_EXPORT int cgfgui_thinking(
                 if ((next_y < 0 || 19 <= next_y) ||
                     (next_x < 0 || 19 <= next_x)) {
 
+                    // TODO 反射って、要らないのでは？
+                    
                     // 制約Ｌｖ１：　盤外に石が飛び出してはいけない
                     // ============================================
                     if (1 <= i_constraints) {
@@ -1097,6 +1132,7 @@ int move_one(int z, int color)
             del_stone(z1, un_col);
         }
     }
+
     // 自殺手を判定
     count_liberty(z);
     if (g_liberty == 0) {
