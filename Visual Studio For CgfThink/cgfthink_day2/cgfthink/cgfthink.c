@@ -110,7 +110,10 @@ int* pThinkStop = NULL;
 
 #define BOARD_MAX ((19+2)*256)			// 19路盤を最大サイズとする
 
-int board[BOARD_MAX];
+int g_board[BOARD_MAX];                 // 盤
+                                        // 0: 空点
+                                        // 1: 黒石
+                                        // 2: 白石
 int check_board[BOARD_MAX];		// 既にこの石を検索した場合は1
 
 int board_size;	// 盤面のサイズ。19路盤では19、9路盤では9
@@ -321,7 +324,7 @@ int get_mirror_z(int last_z)
 
 // 置けるかどうか判定
 int can_put(int ret_z) {
-    if (board[ret_z] != 0) {
+    if (g_board[ret_z] != 0) {
         // 石の上には置けない
         //PRT(L"（x:%2d y:%2d）　石の上には置けない\n", get_x(ret_z), get_y(ret_z));
         return 0;
@@ -373,7 +376,7 @@ void setupCurrentPosition(
 )
 {
     // 現在局面を棋譜と初期盤面から作る
-    for (int i = 0; i < BOARD_MAX; i++) board[i] = dll_init_board[i];	// 初期盤面をコピー
+    for (int i = 0; i < BOARD_MAX; i++) g_board[i] = dll_init_board[i];	// 初期盤面をコピー
     board_size = dll_board_size;    // 盤サイズをグローバル変数に入れる
     hama[0] = hama[1] = 0;          // アゲハマの数を０にする
     sg_time[0] = sg_time[1] = 0;	// 累計思考時間を０にする
@@ -497,7 +500,7 @@ int find_atari_z(
             int z = get_z(x, y);
 
             // 相手の石
-            if (board[z] == UNCOL(my_color)) {
+            if (g_board[z] == UNCOL(my_color)) {
 
                 // 呼吸点を探索する
                 count_liberty(z);
@@ -524,7 +527,85 @@ int find_atari_z(
     return atari_z;
 }
 
+// TODO 空き三角チェック
+//
+//  そこに石を置くと、空き三角になるか？
+//
+int is_aki_sankaku(
+    int my_color,           // 石の色
+    int tz                  // 着手の通し番号
+) {
+    int tx = get_x(tz);     // 着手 x
+    int ty = get_y(tz);
 
+    // ８方向の添え字
+    int east = 0;           // 東
+    int north_east = 1;     // 北東
+    int north = 2;          // 北
+    int north_west = 3;     // 北西
+    int west = 4;           // 西
+    int south_west = 5;     // 南西
+    int south = 6;          // 南
+    int south_east = 7;     // 南東
+    
+    // ８方向の x, y 座標
+    //                  東    , 北東  , 北    , 北西  , 西    , 南西  , 南    , 南東
+    int adjacent_x[] = {tx + 1, tx + 1, tx    , tx - 1, tx - 1, tx - 1, tx    , tx + 1};
+    int adjacent_y[] = {ty    , ty - 1, ty - 1, ty - 1, ty    , ty + 1, ty + 1, ty + 1};
+
+    // ８方向の石の色
+    //      -1 : 盤外
+    //       0 : 空点
+    //       1 : 黒石
+    //       2 : 白石
+    //                      東    , 北東  , 北    , 北西  , 西    , 南西  , 南    , 南東
+    int adjacent_color[] = {    -1,     -1,     -1,     -1,     -1,     -1,     -1,     -1 };
+
+    for (int dir = 0; dir < 8; dir ++) {
+        int x = adjacent_x[dir];
+        int y = adjacent_y[dir];
+        int adjacent_z = get_z(x, y);
+
+        // 盤内
+        if (0 <= x && x < 19 && 0 <= y && y < 19) {
+            adjacent_color[dir] = g_board[adjacent_z];
+        }
+    }
+
+    // ４箇所のチェック。空き三角が１つでもあれば真
+    // 盤外は -1 なので、空き三角の条件には当てはまらない
+
+    // 東、北東、北、
+    if (g_board[get_z(adjacent_x[east], adjacent_y[east])] == my_color &&
+        g_board[get_z(adjacent_x[north_east], adjacent_y[north_east])] == 0 &&
+        g_board[get_z(adjacent_x[north], adjacent_y[north])] == my_color) {
+        return 1;
+    }
+
+    // 北、北西、西
+    if (g_board[get_z(adjacent_x[north], adjacent_y[north])] == my_color &&
+        g_board[get_z(adjacent_x[north_west], adjacent_y[north_west])] == 0 &&
+        g_board[get_z(adjacent_x[west], adjacent_y[west])] == my_color) {
+        return 1;
+    }
+
+    // 西、南西、南
+    if (g_board[get_z(adjacent_x[west], adjacent_y[west])] == my_color &&
+        g_board[get_z(adjacent_x[south_west], adjacent_y[south_west])] == 0 &&
+        g_board[get_z(adjacent_x[south], adjacent_y[south])] == my_color) {
+        return 1;
+    }
+
+    // 南、南東、東
+    if (g_board[get_z(adjacent_x[south], adjacent_y[south])] == my_color &&
+        g_board[get_z(adjacent_x[south_east], adjacent_y[south_east])] == 0 &&
+        g_board[get_z(adjacent_x[east], adjacent_y[east])] == my_color) {
+        return 1;
+    }
+
+    // 空き三角ではない
+    return 0;
+}
 
 
 // ########
@@ -864,7 +945,7 @@ DLL_EXPORT int cgfgui_thinking(
 
                 // 指し手の試行
                 int temp_ret_z = get_z(next_x, next_y);
-                destination_color = board[temp_ret_z];
+                destination_color = g_board[temp_ret_z];
 
                 // 空点には置ける
                 if (destination_color == 0) {
@@ -872,7 +953,7 @@ DLL_EXPORT int cgfgui_thinking(
                     // 自殺手ならやり直し
                     count_liberty(temp_ret_z);
                     if (g_liberty == 0) {
-                        //PRT(L"[%4d手目]  temp_ret_z:%04x  board[temp_ret_z]:%d  自殺手\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
+                        //PRT(L"[%4d手目]  temp_ret_z:%04x  g_board[temp_ret_z]:%d  自殺手\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
                         //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                         //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                         //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
@@ -882,7 +963,7 @@ DLL_EXPORT int cgfgui_thinking(
 
                     // コウならやり直し
                     if (is_ko(temp_ret_z)) {
-                        //PRT(L"[%4d手目]  temp_ret_z:%04x  board[temp_ret_z]:%d  コウ\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
+                        //PRT(L"[%4d手目]  temp_ret_z:%04x  g_board[temp_ret_z]:%d  コウ\n", dll_tesuu + 1, temp_ret_z & 0xff, destination_color);
                         //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                         //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                         //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
@@ -890,10 +971,15 @@ DLL_EXPORT int cgfgui_thinking(
                         continue;
                     }
 
+                    // 空き三角ならやり直し
+                    if (1 <= i_constraints && is_aki_sankaku(my_color, temp_ret_z)) {
+                        continue;
+                    }
+
                     // 指し手の更新
                     ret_z = temp_ret_z;
 
-                    //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                    //PRT(L"[%4d手目]  ret_z:%04x  g_board[ret_z]:%d  Ok\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                     //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                     //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                     //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
@@ -901,7 +987,7 @@ DLL_EXPORT int cgfgui_thinking(
                     goto end_of_loop_for_stone_puts;
                 }
 
-                //PRT(L"[%4d手目]  ret_z:%04x  board[ret_z]:%d  石がある\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
+                //PRT(L"[%4d手目]  ret_z:%04x  g_board[ret_z]:%d  石がある\n", dll_tesuu + 1, ret_z & 0xff, destination_color);
                 //PRT(L"            next_distance_f:%2.2f  =  (  distance_f:%2.2f  +  offset_distance:%2d)\n", next_distance_f, distance_f, offset_distance);
                 //PRT(L"            next_degrees:%3d  =  starting_angle_degrees:%3d  +  offset_angle_degrees:%3d  ...  g_angle_cursor:%3d\n", next_degrees, starting_angle_degrees, offset_angle_degrees, g_angle_cursor);
                 //PRT(L"            next_y_before_conditioning:%2d  =  offset_y:%2d  +  last_y:%2d  ...  next_y:%2d\n", next_y_before_conditioning, offset_y, last_y, next_y);
@@ -938,7 +1024,7 @@ void print_board(void)
 
     for (y = 0; y < board_size + 2; y++) for (x = 0; x < board_size + 2; x++) {
         z = (y + 0) * 256 + (x + 0);
-        PRT(L"%s", str[board[z]]);
+        PRT(L"%s", str[g_board[z]]);
         if (x == board_size + 1) PRT(L"\n");
     }
 }
@@ -953,11 +1039,11 @@ int endgame_status(int endgame_board[])
     for (y = 0; y < board_size; y++) for (x = 0; x < board_size; x++) {
         z = get_z(x, y);
         p = endgame_board + z;
-        if (board[z] == 0) {
+        if (g_board[z] == 0) {
             *p = GTP_DAME;
             sum = 0;
             for (i = 0; i < 4; i++) {
-                k = board[z + dir4[i]];
+                k = g_board[z + dir4[i]];
                 if (k == WAKU) continue;
                 sum |= k;
             }
@@ -1045,7 +1131,7 @@ void count_liberty(int tz)
         check_board[i] = 0;
     }
 
-    count_liberty_sub(tz, board[tz]);
+    count_liberty_sub(tz, g_board[tz]);
 }
 
 
@@ -1070,14 +1156,14 @@ void count_liberty_sub(int tz, int my_color)
         }
 
         // 空点
-        if (board[z] == 0) {
+        if (g_board[z] == 0) {
             check_board[z] = 1;	        // この空点は検索済み
             g_last_liberty_z = z;       // 最後に探索した呼吸点
             g_liberty++;				// 呼吸点の数
         }
 
         // 未探索の自分の石
-        if (board[z] == my_color) {
+        if (g_board[z] == my_color) {
             count_liberty_sub(z, my_color);
         }
     }
@@ -1089,10 +1175,10 @@ void del_stone(int tz, int color)
 {
     int z, i;
 
-    board[tz] = 0;
+    g_board[tz] = 0;
     for (i = 0; i < 4; i++) {
         z = tz + dir4[i];
-        if (board[z] == color) del_stone(z, color);
+        if (g_board[z] == color) del_stone(z, color);
     }
 }
 
@@ -1114,15 +1200,15 @@ int move_one(int z, int color)
         PRT(L"move() Err: コウ！z=%04x\n", z);
         return MOVE_KOU;
     }
-    if (board[z] != 0) {
+    if (g_board[z] != 0) {
         PRT(L"move() Err: 空点ではない！z=%04x\n", z);
         return MOVE_EXIST;
     }
-    board[z] = color;	// とりあえず置いてみる
+    g_board[z] = color;	// とりあえず置いてみる
 
     for (i = 0; i < 4; i++) {
         z1 = z + dir4[i];
-        if (board[z1] != un_col) continue;
+        if (g_board[z1] != un_col) continue;
         // 敵の石が取れるか？
         count_liberty(z1);
         if (g_liberty == 0) {
@@ -1137,7 +1223,7 @@ int move_one(int z, int color)
     count_liberty(z);
     if (g_liberty == 0) {
         PRT(L"move() Err: 自殺手! z=%04x\n", z);
-        board[z] = 0;
+        g_board[z] = 0;
         return MOVE_SUICIDE;
     }
 
@@ -1149,7 +1235,7 @@ int move_one(int z, int color)
         sum = 0;
         for (i = 0; i < 4; i++) {
             z1 = del_z + dir4[i];
-            if (board[z1] != color) continue;
+            if (g_board[z1] != color) continue;
             count_liberty(z1);
             if (g_liberty == 1 && g_ishi == 1) sum++;
         }
