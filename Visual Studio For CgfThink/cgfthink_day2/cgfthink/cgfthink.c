@@ -1129,10 +1129,11 @@ int get_z(int x, int y)
 }
 
 
-// count_liberty 関数のサブ関数
+// count_liberty 関数のサブ関数、自身の再帰関数
 //
-// 呼吸点と石の数える再帰関数
-// 4方向を調べて、空白だったら+1、自分の石なら再帰で。相手の石、壁ならそのまま。
+//      呼吸点と石の数える。
+//      4方向を調べて、空白だったら+1、自分の石なら再帰で。相手の石、壁ならそのまま。
+//
 void count_liberty_sub(int tz, int my_color)
 {
     int z, i;
@@ -1171,6 +1172,7 @@ void count_liberty(int tz)
     g_last_liberty_z = -1;
     g_liberty = g_ishi = 0;
 
+    // チェックボードの初期化
     for (i = 0; i < BOARD_MAX; i++) {
         check_board[i] = 0;
     }
