@@ -600,8 +600,8 @@ DLL_EXPORT int cgfgui_thinking(
     //      ----> １８００秒を４００で割ると４．５。　１手平均４．５秒使ってしまうと時間切れになる。
     //            １手２秒ぐらいスリープさせても８００秒。約１３分強。これぐらい時間を消費させた方がゆっくり観戦できるのでは？
     //            処理を増やすと、もっと時間消費するかも。
-    int sleepSeconds = 0; // for debug
-    //int sleepSeconds = 2;
+    //int sleepSeconds = 0; // for debug
+    int sleepSeconds = 2;
     PRT(L"スリープ %4d 秒", sleepSeconds);
     Sleep(sleepSeconds * 1000);
 
@@ -737,6 +737,7 @@ DLL_EXPORT int cgfgui_thinking(
         // 
         //              それだと距離が遠すぎるので、さらに半分にする
         //                  ----> この　÷２　がキツすぎるのでは？
+        //                        半分ずつ近づいてきて、シチョウを取りに行く動きをする効果が出る。
         // 
         //              さらに切り捨てで交点１つ分短くなっているように見えるので 0.5 足す
         //                  ----> 0.5 を足して切り捨てれば、四捨五入と同じになるはず
@@ -757,7 +758,7 @@ DLL_EXPORT int cgfgui_thinking(
     int next_degrees = -1;
 
     // ##########
-    // # 石を置けなかったら、制限を緩めていく
+    // # （優先順：最後）石を置けなかったら、制限を緩めていく
     // ##########
     //
     //      最初は、自分への指し方のルールを強めに課していて、
@@ -781,7 +782,7 @@ DLL_EXPORT int cgfgui_thinking(
             }
 
             // ##########
-            // # 石を置けなかったら、角度を変えて置く
+            // # （優先順：最初）石を置けなかったら、角度を変えて置く
             // ##########
             //
             for (int i_angle = 0; i_angle < G_ANGLE_DEGREES_360_SIZE; i_angle++) {
