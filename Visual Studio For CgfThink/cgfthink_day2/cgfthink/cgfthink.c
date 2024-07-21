@@ -474,61 +474,6 @@ int next_angle_degrees() {
 }
 
 
-// 相手の石を取り上げられる空点があるなら、それを返す。無ければ -1
-//
-// ただし、石１個を取り上げるのを優先すると、３コウになりやすいので、
-// 取り上げる石の最低数を指定できるようにする
-//
-int find_atari_z(
-    int dll_kifu[][3],		// 棋譜
-                            // [n][]...手数
-                            // [][0]...座標
-                            // [][1]...石の色
-                            // [][2]...消費時間（秒)
-    int dll_tesuu,			// 手数
-    int my_color,           // 自分の石の色
-    int min_agehama,        // 取り上げる石の最低数
-    int max_agehama
-)
-{
-    int old_liberty = g_liberty;
-    int old_ishi = g_ishi;
-
-    int max_atari_ishi = 0;
-    int atari_z = -1;
-
-    for (int y = 0; y < 19; y++) {
-        for (int x = 0; x < 19; x++) {
-            int z = get_z(x, y);
-
-            // 相手の石
-            if (g_board[z] == UNCOL(my_color)) {
-
-                // 呼吸点を探索する
-                count_liberty(z);
-
-                // アタリだ
-                if (g_liberty == 1 && max_atari_ishi < g_ishi && min_agehama <= g_ishi && g_ishi <= max_agehama) {
-
-                    // アテがコウになるなら無視
-                    if (is_ko(g_last_liberty_z)) {
-                        continue;
-                    }
-
-                    max_atari_ishi = g_ishi;
-                    atari_z = g_last_liberty_z;
-                }
-            }
-        }
-    }
-
-    // Restore
-    g_liberty = old_liberty;
-    g_ishi = old_ishi;
-
-    return atari_z;
-}
-
 // 空き三角チェック
 //
 //      そこに石を置くと、空き三角になるか？
@@ -1190,9 +1135,6 @@ int get_z(int x, int y)
 // 4方向を調べて、空白だったら+1、自分の石なら再帰で。相手の石、壁ならそのまま。
 void count_liberty_sub(int tz, int my_color)
 {
-    // 新規の連の調査開始
-
-
     int z, i;
 
     check_board[tz] = 1;			    // この石は検索済み	
@@ -1224,6 +1166,81 @@ void count_liberty_sub(int tz, int my_color)
 // 位置 tz における呼吸点の数と石の数を計算。結果はグローバル変数に入れる。
 void count_liberty(int tz)
 {
+    int i;
+
+    g_last_liberty_z = -1;
+    g_liberty = g_ishi = 0;
+
+    for (i = 0; i < BOARD_MAX; i++) {
+        check_board[i] = 0;
+    }
+
+    count_liberty_sub(tz, g_board[tz]);
+}
+
+
+// 相手の石を取り上げられる空点があるなら、それを返す。無ければ -1
+//
+// ただし、石１個を取り上げるのを優先すると、３コウになりやすいので、
+// 取り上げる石の最低数を指定できるようにする
+//
+int find_atari_z(
+    int dll_kifu[][3],		// 棋譜
+    // [n][]...手数
+    // [][0]...座標
+    // [][1]...石の色
+    // [][2]...消費時間（秒)
+    int dll_tesuu,			// 手数
+    int my_color,           // 自分の石の色
+    int min_agehama,        // 取り上げる石の最低数
+    int max_agehama
+)
+{
+    int old_liberty = g_liberty;
+    int old_ishi = g_ishi;
+
+    int max_atari_ishi = 0;
+    int atari_z = -1;
+
+    for (int y = 0; y < 19; y++) {
+        for (int x = 0; x < 19; x++) {
+            int z = get_z(x, y);
+
+            // 相手の石
+            if (g_board[z] == UNCOL(my_color)) {
+
+                // 呼吸点を探索する
+                count_liberty(z);
+
+                // アタリだ
+                if (g_liberty == 1 && max_atari_ishi < g_ishi && min_agehama <= g_ishi && g_ishi <= max_agehama) {
+
+                    // アテがコウになるなら無視
+                    if (is_ko(g_last_liberty_z)) {
+                        continue;
+                    }
+
+                    max_atari_ishi = g_ishi;
+                    atari_z = g_last_liberty_z;
+                }
+            }
+        }
+    }
+
+    // Restore
+    g_liberty = old_liberty;
+    g_ishi = old_ishi;
+
+    return atari_z;
+}
+
+
+// すべての連を調べる
+void find_all_ren()
+{
+    int old_liberty = g_liberty;
+    int old_ishi = g_ishi;
+
     // 初期化
     for (int i = 0; i < G_BOARD_AREA_19ROBAN; i++) {
         // 連Id ----> 未指定
@@ -1239,17 +1256,17 @@ void count_liberty(int tz)
         g_liberty_each_ren[i] = 0;
     }
 
+    for (int y = 0; y < 19; y++) {
+        for (int x = 0; x < 19; x++) {
+            int z = get_z(x, y);
 
-    int i;
-
-    g_last_liberty_z = -1;
-    g_liberty = g_ishi = 0;
-
-    for (i = 0; i < BOARD_MAX; i++) {
-        check_board[i] = 0;
+            // 連（見方を変えれば呼吸点）を調べる
+            count_liberty(z);
+        }
     }
 
-    count_liberty_sub(tz, g_board[tz]);
+    g_liberty = old_liberty;
+    g_ishi = old_ishi;
 }
 
 
